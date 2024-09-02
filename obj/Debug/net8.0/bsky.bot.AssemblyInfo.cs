@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("bsky.bot")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+54490eb50d010c5b808906f00c5072efd06cf02c")]
 [assembly: System.Reflection.AssemblyProductAttribute("bsky.bot")]
 [assembly: System.Reflection.AssemblyTitleAttribute("bsky.bot")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

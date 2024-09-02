@@ -46,3 +46,4 @@
 /home/alanlopes/dev/blueskybot/Bluesky.Bot/obj/Debug/net8.0/bsky.bot.pdb
 /home/alanlopes/dev/blueskybot/Bluesky.Bot/obj/Debug/net8.0/bsky.bot.genruntimeconfig.cache
 /home/alanlopes/dev/blueskybot/Bluesky.Bot/obj/Debug/net8.0/ref/bsky.bot.dll
+/home/alanlopes/dev/blueskybot/Bluesky.Bot/obj/Debug/net8.0/bsky.bot.sourcelink.json
