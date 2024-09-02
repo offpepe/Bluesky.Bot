@@ -8,6 +8,11 @@ public class DataRepository : IDisposable
         ".bskybot"
     );
     
+    private readonly ILogger<DataRepository> _logger = LoggerFactory.Create(b =>
+    {
+        b.SetMinimumLevel(LogLevel.Information).AddSimpleConsole();
+    }).CreateLogger<DataRepository>();
+    
     private readonly HashSet<string> _processedPosts = new();
 
     private readonly string _processedPostsPath = Path.Join(DefaultPath, "data_processed");
@@ -39,6 +44,19 @@ public class DataRepository : IDisposable
         {
             _processedPosts.Add(post);
         }
+    }
+
+    public string? GetContentSource()
+    {
+        var srcQueue = File.ReadAllLines(Path.Join(DefaultPath, "sources")).Select(s =>
+        {
+            var split = s.Split(',');
+            return (split[0], bool.TryParse(split[1], out var value) && value);
+        });
+        var (src, _) = srcQueue.FirstOrDefault(src => !src.Item2);
+        if (string.IsNullOrEmpty(src)) return null; 
+        _logger.LogInformation("Content source found on path {SrcPath}", src);   
+        return File.ReadAllText(Path.Join(DefaultPath, src));
     }
 
     public void Dispose()

@@ -133,5 +133,20 @@ public sealed class BlueSky
         await Login();
         return await GetPostThread(uri);
     }
-    
+
+    public async Task CreateNewPost(string content)
+    {
+        var request = JsonSerializer.Serialize(new PostRequest(this.Repo, content),
+            BlueSkyBotJsonSerializerContext.Default.PostRequest);
+        var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
+            new StringContent(request, Encoding.UTF8, "application/json"));
+        if (response.IsSuccessStatusCode) return;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        }
+        await Login();
+        await CreateNewPost(content);
+    }
+
 }

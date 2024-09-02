@@ -30,6 +30,7 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(ListNotificationsResponse))]
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(GetPostThread))]
+[JsonSerializable(typeof(PostRequest))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(string))]
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext

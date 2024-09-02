@@ -9,26 +9,17 @@ using bsky.bot.Storage;
 
 namespace bsky.bot;
 
-public class InteractionWorker: IDisposable
+public class InteractionWorker(string url, string ollamaUrl, string email, string password): IDisposable
 {
-    private readonly string _url = Environment.GetEnvironmentVariable("bluesky_url") ?? throw new ApplicationException("variable $bluesky_url not found");
-    private readonly string _ollamaUrl = Environment.GetEnvironmentVariable("ollama_url") ?? throw new ApplicationException("variable $ollama_url not found");
-    private readonly string _email = Environment.GetEnvironmentVariable("bluesky_email") ?? throw new ApplicationException("variable $bluesky_email not found");
-    private readonly string _password = Environment.GetEnvironmentVariable("bluesky_password") ?? throw new ApplicationException("variable $bluesky_password not found");
-    private readonly ILogger<InteractionWorker> _logger;
-    private readonly BlueSky _blueSky;
-    private readonly Ollama _ollama;
+    
+    private readonly BlueSky _blueSky = new (url, email, password);
+    private readonly Ollama _ollama = new (ollamaUrl, OllamaModels.INTERACTION_MODEL);
     private readonly DataRepository _dataRepository = new();
-
-    public InteractionWorker()
+    
+    private readonly ILogger<InteractionWorker> _logger = LoggerFactory.Create(b =>
     {
-        _logger = LoggerFactory.Create(b =>
-        {
-            b.SetMinimumLevel(LogLevel.Information).AddSimpleConsole();
-        }).CreateLogger<InteractionWorker>();
-        _blueSky = new BlueSky(_url, _email, _password);
-        _ollama = new Ollama(_ollamaUrl);
-    }
+        b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
+    }).CreateLogger<InteractionWorker>();
 
     public async Task ExecuteAsync()
     {
@@ -53,7 +44,7 @@ public class InteractionWorker: IDisposable
         if (_dataRepository.PostAlreadyProcessed(notification.cid)) return;
         _logger.LogInformation("Following back user: {Handle}", notification.author.handle);
         await _blueSky.FollowBack(notification);
-        _dataRepository.PostAlreadyProcessed(notification.cid);
+        _dataRepository.AddProcessedPost(notification.cid);
         _logger.LogInformation("user {DisplayName} followed back!", notification.author.displayName);
     }
 

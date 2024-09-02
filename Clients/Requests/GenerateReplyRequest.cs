@@ -2,11 +2,12 @@ namespace bsky.bot.Clients.Requests;
 
 public sealed class GenerateReplyRequest
 {
-    public GenerateReplyRequest(string prompt)
+    public GenerateReplyRequest(string prompt, string model)
     {
         this.prompt = prompt;
+        this.model = model;
     }
     public string prompt { get; init; }
-    public string model { get; } = "bluesky-phi3.5";
+    public string model { get; init; }
     public bool stream { get; } = false;
 }

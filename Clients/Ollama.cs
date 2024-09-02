@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Config;
@@ -11,8 +12,11 @@ public class Ollama
 {
     private readonly HttpClient _httpClient;
     
-    public Ollama(string url)
+    private readonly string _model;
+    
+    public Ollama(string url, string model)
     {
+        _model = model;
         _httpClient = new HttpClient();
         _httpClient.BaseAddress = new Uri(url);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -22,7 +26,7 @@ public class Ollama
     public async Task<GenerateReplyResponse> GenerateReply(string replyText)
     {
         var request = JsonSerializer.Serialize(
-            new GenerateReplyRequest(replyText),
+            new GenerateReplyRequest(replyText, _model),
             BlueSkyBotJsonSerializerContext.Default.GenerateReplyRequest
         );
         var response = await _httpClient.PostAsync(string.Empty, new StringContent(request, Encoding.UTF8, "application/json"));
