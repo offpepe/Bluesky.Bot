@@ -5,7 +5,7 @@ using System.Text.Json;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
-using BlueSkyBotJsonSerializerContext = bsky.bot.Config.BlueSkyBotJsonSerializerContext;
+using bsky.bot.Config;
 
 namespace bsky.bot.Clients;
 
@@ -105,7 +105,6 @@ public sealed class BlueSky
     public async Task<Post> GetPostByUri(string uri)
     {
         var response = await _httpClient.GetAsync($"app.bsky.feed.getPosts?uris={uri}");
-        var responseStr = await response.Content.ReadAsStringAsync();
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(
                 await response.Content.ReadAsStreamAsync(),
@@ -117,6 +116,22 @@ public sealed class BlueSky
         }
         await Login();
         return await GetPostByUri(uri);
+    }
+
+    public async Task<GetPostThread> GetPostThread(string uri)
+    {
+        var response = await _httpClient.GetAsync($"app.bsky.feed.getPostThread?uri={uri}");
+        if (response.IsSuccessStatusCode)
+            return JsonSerializer.Deserialize(
+                await response.Content.ReadAsStreamAsync(),
+                BlueSkyBotJsonSerializerContext.Default.GetPostThread
+            )!;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException($"Failed to get post thread by uri: {uri}, response: {response.StatusCode}\n Response: {response.Content.ReadAsStringAsync().Result}");
+        }
+        await Login();
+        return await GetPostThread(uri);
     }
     
 }
