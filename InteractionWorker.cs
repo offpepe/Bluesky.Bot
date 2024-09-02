@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using bsky.bot.Clients;
 using bsky.bot.Clients.Enums;
@@ -44,8 +45,6 @@ public class InteractionWorker: IDisposable
         }
 
         await Task.WhenAll(list.notifications.Where(n => n.reason == NotificationReasons.FOLLOW).Select(FollowBack));
-        _logger.LogInformation("Worker done at: {time}", DateTimeOffset.Now);
-        _logger.LogInformation("Next run at: {time}", DateTimeOffset.Now.AddHours(1));
     }
 
 
@@ -63,7 +62,8 @@ public class InteractionWorker: IDisposable
         var alreadyProcessed = _dataRepository.PostAlreadyProcessed(notification.uri);
         if (alreadyProcessed || !notification.record.HasValue || !notification.record.Value.reply.HasValue) return;
         _logger.LogInformation("tracking conversation of conversation {RootUri}", notification.record.Value.reply.Value.root.uri);
-        var conversationContext = await TrackConversationContext(notification.record.Value.reply.Value, notification.record.Value.text);
+        var conversationContext = await TrackConversationContext(notification.uri);
+        if (conversationContext == null) return;
         _logger.LogInformation("conversation tracked");
         _logger.LogInformation("generating response...");
         var generatedResponse = await _ollama.GenerateReply(conversationContext);
@@ -83,35 +83,34 @@ public class InteractionWorker: IDisposable
         _logger.LogInformation("reply sent for post {uri} of thread {Root}.", notification.uri, notification.record.Value.reply.Value.root.cid);
     }
 
-    private async Task<string> TrackConversationContext(Reply reply, string text)
+    private async Task<string?> TrackConversationContext(string postUri)
     {
-        var convReply = new ConversationReply(text, false, null);
-        if (reply.parent.uri == reply.root.uri)
+        var postThread = (await _blueSky.GetPostThread(postUri)).thread;
+        if (postThread.post.author.did == _blueSky.Repo || postThread.replies.Any(VerifyAnswered)) return null;
+        var replyTo = postThread.post.record.reply;
+        var conversationReply = new ConversationReply(postThread.post.record.text, false, null);
+        while (postThread.parent != null)
         {
-            return await GetConversationRoot(reply, convReply);
+            postThread = postThread.parent;
+            conversationReply = new ConversationReply(
+                postThread.post.record.text, 
+                postThread.post.author.did == _blueSky.Repo,
+                conversationReply);
         }
-        var parentPost = await _blueSky.GetPostByUri(reply.parent.uri);
-        convReply = new ConversationReply(parentPost.record.text, parentPost.author.did == _blueSky.Repo, convReply);
-        while (parentPost.record.reply!.Value.parent != parentPost.record.reply!.Value.root)
-        {
-            parentPost = await _blueSky.GetPostByUri(parentPost.record.reply.Value.parent.uri);
-            convReply = new ConversationReply(parentPost.record.text, parentPost.author.did == _blueSky.Repo,convReply);
-        }
-        
-        return await GetConversationRoot(reply, convReply);
+        return ConvertToPrompt(postThread.post.record.text, conversationReply);
     }
 
-    private async Task<string> GetConversationRoot(Reply reply, ConversationReply convReply)
+    private bool VerifyAnswered(ThreadPostReply reply)
     {
-        var rootPost = await _blueSky.GetPostByUri(reply.root.uri);
-        return ConvertToPrompt(new ConversationRep(rootPost.record.text, convReply));
+        if (reply.post.author.did != _blueSky.Repo && reply.replies.Length != 0) return false;
+        return reply.replies.Any(VerifyAnswered);
     }
-
-    private string ConvertToPrompt(ConversationRep conversationRep)
+    
+    
+    private string ConvertToPrompt(string root, ConversationReply? reply)
     {
-        var stringBuilder = new StringBuilder($"root: {conversationRep.root}");
+        var stringBuilder = new StringBuilder($"root: {root}");
         var endStringBuilder = new StringBuilder();
-        var reply = conversationRep.reply;
         while (reply != null)
         {
             stringBuilder.Append($", reply: (value: {reply.value}, self: {reply.self}");
