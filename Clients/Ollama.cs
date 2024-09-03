@@ -11,8 +11,12 @@ namespace bsky.bot.Clients;
 public class Ollama
 {
     private readonly HttpClient _httpClient;
-    
     private readonly string _model;
+    private readonly ILogger<Ollama> _logger = LoggerFactory.Create(b =>
+    {
+        b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
+    }).CreateLogger<Ollama>();
+    
     
     public Ollama(string url, string model)
     {
@@ -53,5 +57,18 @@ public class Ollama
             await response.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.GenerateReplyResponse
         );
+    }
+
+    public async Task<string> AdjustContentSize(string content, int[] context) 
+    {
+        while (content.Length >= Constants.GENERATED_CONTENT_SIZE)
+        {
+            _logger.LogInformation("Adjusting content size");
+            var adjustedReply = await GenerateReply($"Resuma: {content}", context);
+            content = adjustedReply.response;
+            context = adjustedReply.context;
+        }
+        _logger.LogInformation("Content size adjusted");
+        return content;
     }
 }
