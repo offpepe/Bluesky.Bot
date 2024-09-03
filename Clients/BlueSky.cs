@@ -9,6 +9,7 @@ using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Config;
+using bsky.bot.Utils;
 
 namespace bsky.bot.Clients;
 
@@ -23,7 +24,6 @@ public sealed class BlueSky
 
     private const string BOLHA_TAG = "#bolhadev";
     private const string ARTICLE_TAG = "#ArtigosDev";
-    
     
     public BlueSky(string url, string email, string password, string embedSourceUrl)
     {
@@ -140,7 +140,7 @@ public sealed class BlueSky
 
     public async Task CreateNewPost(string content, string href)
     {
-        var facets = AddDefaultTags(ref content);
+        var facets = AddTags(ref content);
         var requestBody = new PostRequest(Repo, content, facets);
         if (!string.IsNullOrEmpty(href))
         {
@@ -214,19 +214,18 @@ public sealed class BlueSky
         return embedData;
     }
 
-    private static Facet[] AddDefaultTags(ref string content)
+    private static Facet[] AddTags(ref string content)
     {
-        var mergedTags = BOLHA_TAG + ARTICLE_TAG;
-        content = content.Length + mergedTags.Length > 300 
-            ? content = content[..^mergedTags.Length] + mergedTags
-            : content + mergedTags;
-
-        var bobbleIndex = content.IndexOf(BOLHA_TAG, StringComparison.Ordinal) + 1;
-        var articleIndex = content.IndexOf(ARTICLE_TAG, StringComparison.Ordinal) + 1;
-        Facet[] facets = [
+        var merged = BOLHA_TAG + ' ' + ARTICLE_TAG;
+        if (content.Length + merged.Length >= 300) throw new ApplicationException("Unable to add tag. Maximum allowed length is 300");
+        content += merged;
+        var bobbleIndex = content.IndexOf(BOLHA_TAG, StringComparison.Ordinal);
+        var articleIndex = content.IndexOf(ARTICLE_TAG, StringComparison.Ordinal);
+        return
+        [
             new Facet
             {
-                index = new FacetIndex(bobbleIndex, bobbleIndex + BOLHA_TAG.Length),
+                index = new FacetIndex(content.Utf16IndexToUtf8Index(bobbleIndex), content.Utf16IndexToUtf8Index(bobbleIndex + BOLHA_TAG.Length)),
                 features = [
                     new Feature
                     {
@@ -237,7 +236,7 @@ public sealed class BlueSky
             },
             new Facet
             {
-                index = new FacetIndex(articleIndex, articleIndex + ARTICLE_TAG.Length),
+                index = new FacetIndex(content.Utf16IndexToUtf8Index(articleIndex), content.Utf16IndexToUtf8Index(articleIndex + ARTICLE_TAG.Length)),
                 features = [
                     new Feature
                     {
@@ -247,7 +246,5 @@ public sealed class BlueSky
                 ]
             }
         ];
-
-        return facets;
     }
 }

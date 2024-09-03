@@ -21,14 +21,21 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, s
 
     public async Task ExecuteAsync()
     {
+        _logger.LogInformation("Starting interaction worker");
         var list = await blueSky.ListNotifications();
-
+        var replies = list.notifications.Where(n => n.reason == NotificationReasons.REPLY);
+        var newFollowers = list.notifications.Where(n => n.reason == NotificationReasons.FOLLOW).Select(FollowBack).ToArray();
+        if (!replies.Any() && !newFollowers.Any())
+        {
+            _logger.LogInformation("none new notifications to interact, interaction worker stopped");
+            return;
+        }
         foreach (var reply in list.notifications.Where(n => n.reason == NotificationReasons.REPLY))
         {
             await ReplyReplies(reply);
         }
-
-        await Task.WhenAll(list.notifications.Where(n => n.reason == NotificationReasons.FOLLOW).Select(FollowBack));
+        await Task.WhenAll(newFollowers);
+        _logger.LogInformation("Interaction worker stopped");
     }
 
 
@@ -56,13 +63,17 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, s
             _logger.LogInformation("response undone, skipping...");
             return;
         }
+        var generatedContent = generatedResponse.response;
+        if (generatedResponse.response.Length >= Constants.GENERATED_CONTENT_SIZE)
+            generatedContent =
+                await this._ollama.AdjustContentSize(generatedContent, generatedResponse.context);  
         _logger.LogInformation("response generated");
         var reply = notification.record.Value.reply.Value with
         {
             parent = new ReplyDestination(notification.cid, notification.uri)
         };
         _logger.LogInformation("replying user {DisplayName} on post {uri}", notification.author.displayName, notification.uri);
-        await blueSky.Reply(reply, AddTag(generatedResponse.response));
+        await blueSky.Reply(reply, AddTag(generatedContent));
         dataRepository.AddProcessedPost(notification.uri);
         _logger.LogInformation("reply sent for post {uri} of thread {Root}.", notification.uri, notification.record.Value.reply.Value.root.cid);
     }
@@ -108,6 +119,6 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, s
     private static string AddTag(string value)
     {
         value = value.Length > 284 ? value[..284] : value;
-        return $"[GERADO-POR-IA] {value}";
+        return $"[IA] {value}";
     }
 }
