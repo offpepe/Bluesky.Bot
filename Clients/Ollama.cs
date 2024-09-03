@@ -38,4 +38,20 @@ public class Ollama
             BlueSkyBotJsonSerializerContext.Default.GenerateReplyResponse
         );
     }
+    
+    public async Task<GenerateReplyResponse> GenerateReply(string replyText, int[] context)
+    {
+        var request = JsonSerializer.Serialize(
+            new GenerateReplyRequest(replyText, _model, context),
+            BlueSkyBotJsonSerializerContext.Default.GenerateReplyRequest
+        );
+        var response = await _httpClient.PostAsync(string.Empty, new StringContent(request, Encoding.UTF8, "application/json"));
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException(
+                $"Ollama API failed while generating reply | Status Code: {response.StatusCode} \n Response: {await response.Content.ReadAsStringAsync()}");
+        return JsonSerializer.Deserialize(
+            await response.Content.ReadAsStreamAsync(),
+            BlueSkyBotJsonSerializerContext.Default.GenerateReplyResponse
+        );
+    }
 }

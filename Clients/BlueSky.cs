@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
@@ -12,23 +15,28 @@ namespace bsky.bot.Clients;
 public sealed class BlueSky
 {
     private readonly HttpClient _httpClient;
+    private readonly string _embedSourceExtractorUrl; 
     private readonly string _email;
     private readonly string _password;
     private string _token;
     public string Repo;
+
+    private const string BOLHA_TAG = "#bolhadev";
+    private const string ARTICLE_TAG = "#ArtigosDev";
     
     
-    public BlueSky(string url, string email, string password)
+    public BlueSky(string url, string email, string password, string embedSourceUrl)
     {
         _email = email;
         _password = password;
         _httpClient = new HttpClient();
         _httpClient.BaseAddress = new Uri(url);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _embedSourceExtractorUrl = embedSourceUrl;
     }
 
 
-    private async Task Login()
+    public async Task Login()
     {
         var body = JsonSerializer.Serialize(new LoginRequest(_email, _password),
             BlueSkyBotJsonSerializerContext.Default.LoginRequest);
@@ -52,10 +60,6 @@ public sealed class BlueSky
 
     public async Task<ListNotificationsResponse> ListNotifications()
     {
-        if (string.IsNullOrEmpty(_token))
-        {
-            await Login();
-        }
         var httpResponse = await _httpClient.GetAsync("app.bsky.notification.listNotifications");
         if (httpResponse.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(
@@ -134,10 +138,17 @@ public sealed class BlueSky
         return await GetPostThread(uri);
     }
 
-    public async Task CreateNewPost(string content)
+    public async Task CreateNewPost(string content, string href)
     {
-        var request = JsonSerializer.Serialize(new PostRequest(this.Repo, content),
-            BlueSkyBotJsonSerializerContext.Default.PostRequest);
+        var facets = AddDefaultTags(ref content);
+        var requestBody = new PostRequest(Repo, content, facets);
+        if (!string.IsNullOrEmpty(href))
+        {
+            var embedData = await GetEmbedData(href.Trim());
+               requestBody.AddEmbed(ref embedData);
+        }
+        var request = JsonSerializer.Serialize(
+            requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
         var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
             new StringContent(request, Encoding.UTF8, "application/json"));
         if (response.IsSuccessStatusCode) return;
@@ -146,7 +157,97 @@ public sealed class BlueSky
             throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         }
         await Login();
-        await CreateNewPost(content);
+        await CreateNewPost(content, href);
     }
 
+    private async Task<(byte[], string)> GetImageContent(string href)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, href);
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to get image: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
+        return (await response.Content.ReadAsByteArrayAsync(), response.Content.Headers.ContentType!.MediaType!);
+    }
+
+    private async Task<(string, string, int)> UploadBlob(string href)
+    {
+        var (content, mimeType) = await GetImageContent(href);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "com.atproto.repo.uploadBlob");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(mimeType));
+        request.Content = new ByteArrayContent(content);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
+        using var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to upload blob: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
+        var contentString = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize(
+            await response.Content.ReadAsStreamAsync(),
+            BlueSkyBotJsonSerializerContext.Default.UploadBlob
+        );
+        return (result.blob.Reference.Link, result.blob.MimeType, result.blob.Size);
+    }   
+
+    private async Task<EmbedData> GetEmbedData(string href)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, _embedSourceExtractorUrl + href);
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to get embedding data: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
+        var metadata = JsonSerializer.Deserialize(
+            await response.Content.ReadAsStreamAsync(),
+            BlueSkyBotJsonSerializerContext.Default.GetHrefMetadataResponse);
+        
+        if (!string.IsNullOrEmpty(metadata.error)) throw new HttpRequestException($"Failed to get embedding data: {href}. Error: {metadata.error}");
+        var embedData = new EmbedData(
+            href,
+            metadata.title,
+            metadata.description,
+            string.Empty,
+            string.Empty,
+            0
+            );
+        if (string.IsNullOrEmpty(metadata.image)) return embedData;
+        var (content, mimeType, size) = await UploadBlob(metadata.image);
+        embedData = embedData with
+        {
+            blob = content,
+            mimeType = mimeType,
+            size = size
+        };
+        return embedData;
+    }
+
+    private static Facet[] AddDefaultTags(ref string content)
+    {
+        var mergedTags = BOLHA_TAG + ARTICLE_TAG;
+        content = content.Length + mergedTags.Length > 300 
+            ? content = content[..^mergedTags.Length] + mergedTags
+            : content + mergedTags;
+
+        var bobbleIndex = content.IndexOf(BOLHA_TAG, StringComparison.Ordinal) + 1;
+        var articleIndex = content.IndexOf(ARTICLE_TAG, StringComparison.Ordinal) + 1;
+        Facet[] facets = [
+            new Facet
+            {
+                index = new FacetIndex(bobbleIndex, bobbleIndex + BOLHA_TAG.Length),
+                features = [
+                    new Feature
+                    {
+                        type = FeatureTypes.TAG,
+                        tag = BOLHA_TAG[1..]
+                    }
+                ]
+            },
+            new Facet
+            {
+                index = new FacetIndex(articleIndex, articleIndex + ARTICLE_TAG.Length),
+                features = [
+                    new Feature
+                    {
+                        type = FeatureTypes.TAG,
+                        tag = ARTICLE_TAG[1..]
+                    }
+                ]
+            }
+        ];
+
+        return facets;
+    }
 }

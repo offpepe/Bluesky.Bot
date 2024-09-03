@@ -31,8 +31,18 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(GetPostThread))]
 [JsonSerializable(typeof(PostRequest))]
+[JsonSerializable(typeof(Facet))]
+[JsonSerializable(typeof(Feature))]
+[JsonSerializable(typeof(Feature[]))]
+[JsonSerializable(typeof(Facet[]))]
+[JsonSerializable(typeof(FacetIndex))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(GetHrefMetadataResponse))]
+[JsonSerializable(typeof(UploadBlob))]
+[JsonSerializable(typeof(RefKeyObj))]
+[JsonSerializable(typeof(Blob))]
+[JsonSerializable(typeof(External))]
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {
     
