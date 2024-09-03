@@ -1,3 +1,5 @@
+using bsky.bot.Storage.Models;
+
 namespace bsky.bot.Storage;
 
 public class DataRepository : IDisposable
@@ -7,6 +9,9 @@ public class DataRepository : IDisposable
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
         ".bskybot"
     );
+
+    private int? _actualSrcIndex;
+    private (string, string, bool)[] _sourceQueue = [];
     
     private readonly ILogger<DataRepository> _logger = LoggerFactory.Create(b =>
     {
@@ -46,21 +51,38 @@ public class DataRepository : IDisposable
         }
     }
 
-    public string? GetContentSource()
+    public SourceReference? GetContentSource()
     {
-        var srcQueue = File.ReadAllLines(Path.Join(DefaultPath, "sources")).Select(s =>
+        _sourceQueue = File.ReadAllLines(Path.Join(DefaultPath, "sources")).Select(s =>
         {
             var split = s.Split(',');
-            return (split[0], bool.TryParse(split[1], out var value) && value);
-        });
-        var (src, _) = srcQueue.FirstOrDefault(src => !src.Item2);
+            return (split[0], split[1],bool.TryParse(split[2], out var value) && value);
+        }).ToArray();
+        var src = string.Empty;
+        var href = string.Empty;
+        for (var i = 0; i < _sourceQueue.Length; i++)
+        {
+            var (tsrc, thref, readed) = _sourceQueue[i];
+            if (readed) continue;
+            _actualSrcIndex = i;
+            src = tsrc;
+            href = thref;
+            break;
+        }
         if (string.IsNullOrEmpty(src)) return null; 
-        _logger.LogInformation("Content source found on path {SrcPath}", src);   
-        return File.ReadAllText(Path.Join(DefaultPath, src));
+        _logger.LogInformation("Content source found on path {SrcPath}", src);
+        return new SourceReference(File.ReadAllText(Path.Join(DefaultPath, src)), href);
+    }
+
+    public void DefineSourceReaded()
+    {
+        if (!_actualSrcIndex.HasValue) return;
+        _sourceQueue[_actualSrcIndex.Value].Item3 = true;
     }
 
     public void Dispose()
     {
         File.WriteAllLines(_processedPostsPath, _processedPosts);
+        if (_sourceQueue.Length != 0) File.WriteAllLines(Path.Join(DefaultPath, "sources"), _sourceQueue.Select(tq => $"{tq.Item1},{tq.Item2},{tq.Item3}"));
     }
 }

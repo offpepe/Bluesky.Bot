@@ -2,20 +2,23 @@ using System.Runtime.Intrinsics.X86;
 using bsky.bot.Clients;
 using bsky.bot.Clients.Enums;
 using bsky.bot.Storage;
+using bsky.bot.Storage.Models;
 
 namespace bsky.bot;
 
-public class ContentCreationWorker(string url, string ollamaUrl, string email, string password)
+public class ContentCreationWorker(
+    BlueSky blueSky,
+    DataRepository dataRepository,
+    string ollamaUrl
+)
 {
-    private readonly BlueSky _blueSky = new (url, email, password);
     private readonly Ollama _ollama = new (ollamaUrl, OllamaModels.CONTENT_CREATION_MODEL);
-    private readonly DataRepository _dataRepository = new ();
-    
     private readonly ILogger<InteractionWorker> _logger = LoggerFactory.Create(b =>
     {
         b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
     }).CreateLogger<InteractionWorker>();
 
+    private const int GENERATED_CONTENT_SIZE = 250;
     
     public async Task ExecuteAsync()
     {
@@ -25,29 +28,35 @@ public class ContentCreationWorker(string url, string ollamaUrl, string email, s
     private async Task CreateContentBasedOnSource()
     {
         _logger.LogInformation("Starting content creation");
-        var contentBase = _dataRepository.GetContentSource();
+        var contentBase = dataRepository.GetContentSource();
         if (contentBase == null)
         {
-            _logger.LogError("Unreaded content source not found, cannot create content");
+            _logger.LogInformation("Unreaded content source not found, cannot create content");
             return;
         }
         _logger.LogInformation("Generating content based on source");
-        var generatedContent = await _ollama.GenerateReply(contentBase);
+        var generatedContent = await _ollama.GenerateReply(contentBase.Value.source);
+        if (generatedContent.response.ToLower().StartsWith("desculpe"))
+        {
+            await CreateContentBasedOnSource();
+            return;
+        }
         if (!generatedContent.done) return;
-        var generatedPostContent = generatedContent.response;
-        if (generatedContent.response.Length > 250)
-            generatedPostContent = await AdjustContentSize(generatedPostContent);
+        var generatedPostContent = generatedContent.response + '\n';
+        if (generatedContent.response.Length > GENERATED_CONTENT_SIZE)
+            generatedPostContent = await AdjustContentSize(generatedPostContent, generatedContent.context); 
         _logger.LogInformation("Content generated");
         _logger.LogInformation("Publishing content generated");
-        await _blueSky.CreateNewPost(generatedPostContent);
+        await blueSky.CreateNewPost(generatedPostContent, contentBase.Value.href);
+        dataRepository.DefineSourceReaded();
         _logger.LogInformation("Content published");
     }
 
-    private async Task<string> AdjustContentSize(string generatedResult)
+    private async Task<string> AdjustContentSize(string generatedResult, int[] context)
     {
         _logger.LogInformation("Adjusting content size");
-        var adjustedContent = await _ollama.GenerateReply($"Resuma: {generatedResult}");
-        if (adjustedContent is { done: true, response.Length: > 250 }) return await AdjustContentSize(adjustedContent.response);
+        var adjustedContent = await _ollama.GenerateReply($"Resuma mais", context);
+        if (adjustedContent is { done: true, response.Length: > GENERATED_CONTENT_SIZE }) return await AdjustContentSize(adjustedContent.response, context);
         return adjustedContent.response;
     }
 }

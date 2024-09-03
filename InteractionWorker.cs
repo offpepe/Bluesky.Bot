@@ -9,12 +9,10 @@ using bsky.bot.Storage;
 
 namespace bsky.bot;
 
-public class InteractionWorker(string url, string ollamaUrl, string email, string password): IDisposable
+public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, string ollamaUrl)
 {
     
-    private readonly BlueSky _blueSky = new (url, email, password);
     private readonly Ollama _ollama = new (ollamaUrl, OllamaModels.INTERACTION_MODEL);
-    private readonly DataRepository _dataRepository = new();
     
     private readonly ILogger<InteractionWorker> _logger = LoggerFactory.Create(b =>
     {
@@ -23,12 +21,7 @@ public class InteractionWorker(string url, string ollamaUrl, string email, strin
 
     public async Task ExecuteAsync()
     {
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-        }
-
-        var list = await _blueSky.ListNotifications();
+        var list = await blueSky.ListNotifications();
 
         foreach (var reply in list.notifications.Where(n => n.reason == NotificationReasons.REPLY))
         {
@@ -41,16 +34,16 @@ public class InteractionWorker(string url, string ollamaUrl, string email, strin
 
     private async Task FollowBack(Notification notification)
     {
-        if (_dataRepository.PostAlreadyProcessed(notification.cid)) return;
+        if (dataRepository.PostAlreadyProcessed(notification.cid)) return;
         _logger.LogInformation("Following back user: {Handle}", notification.author.handle);
-        await _blueSky.FollowBack(notification);
-        _dataRepository.AddProcessedPost(notification.cid);
+        await blueSky.FollowBack(notification);
+        dataRepository.AddProcessedPost(notification.cid);
         _logger.LogInformation("user {DisplayName} followed back!", notification.author.displayName);
     }
 
     private async Task ReplyReplies(Notification notification)
     {
-        var alreadyProcessed = _dataRepository.PostAlreadyProcessed(notification.uri);
+        var alreadyProcessed = dataRepository.PostAlreadyProcessed(notification.uri);
         if (alreadyProcessed || !notification.record.HasValue || !notification.record.Value.reply.HasValue) return;
         _logger.LogInformation("tracking conversation of conversation {RootUri}", notification.record.Value.reply.Value.root.uri);
         var conversationContext = await TrackConversationContext(notification.uri);
@@ -69,15 +62,15 @@ public class InteractionWorker(string url, string ollamaUrl, string email, strin
             parent = new ReplyDestination(notification.cid, notification.uri)
         };
         _logger.LogInformation("replying user {DisplayName} on post {uri}", notification.author.displayName, notification.uri);
-        await _blueSky.Reply(reply, AddTag(generatedResponse.response));
-        _dataRepository.AddProcessedPost(notification.uri);
+        await blueSky.Reply(reply, AddTag(generatedResponse.response));
+        dataRepository.AddProcessedPost(notification.uri);
         _logger.LogInformation("reply sent for post {uri} of thread {Root}.", notification.uri, notification.record.Value.reply.Value.root.cid);
     }
 
     private async Task<string?> TrackConversationContext(string postUri)
     {
-        var postThread = (await _blueSky.GetPostThread(postUri)).thread;
-        if (postThread.post.author.did == _blueSky.Repo || postThread.replies.Any(VerifyAnswered)) return null;
+        var postThread = (await blueSky.GetPostThread(postUri)).thread;
+        if (postThread.post.author.did == blueSky.Repo || postThread.replies.Any(VerifyAnswered)) return null;
         var replyTo = postThread.post.record.reply;
         var conversationReply = new ConversationReply(postThread.post.record.text, false, null);
         while (postThread.parent != null)
@@ -85,7 +78,7 @@ public class InteractionWorker(string url, string ollamaUrl, string email, strin
             postThread = postThread.parent;
             conversationReply = new ConversationReply(
                 postThread.post.record.text, 
-                postThread.post.author.did == _blueSky.Repo,
+                postThread.post.author.did == blueSky.Repo,
                 conversationReply);
         }
         return ConvertToPrompt(postThread.post.record.text, conversationReply);
@@ -93,7 +86,7 @@ public class InteractionWorker(string url, string ollamaUrl, string email, strin
 
     private bool VerifyAnswered(ThreadPostReply reply)
     {
-        if (reply.post.author.did != _blueSky.Repo && reply.replies.Length != 0) return false;
+        if (reply.post.author.did != blueSky.Repo && reply.replies.Length != 0) return false;
         return reply.replies.Any(VerifyAnswered);
     }
     
@@ -116,10 +109,5 @@ public class InteractionWorker(string url, string ollamaUrl, string email, strin
     {
         value = value.Length > 284 ? value[..284] : value;
         return $"[GERADO-POR-IA] {value}";
-    }
-
-    public void Dispose()
-    {
-        _dataRepository.Dispose();
     }
 }
