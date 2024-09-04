@@ -7,6 +7,7 @@ namespace bsky.bot;
 public class TechPostingWorker(BlueSky blueSky, DataRepository dataRepository, string ollamaUrl)
 {
     private readonly Ollama _ollama = new (ollamaUrl, OllamaModels.SOCIAL_POSTING_MODEL);
+    private readonly Gemini _gemini = new Gemini("gemini-1.5-flash");
     
     private readonly ILogger<TechPostingWorker> _logger = LoggerFactory.Create(b =>
     {
@@ -22,17 +23,14 @@ public class TechPostingWorker(BlueSky blueSky, DataRepository dataRepository, s
     {
         _logger.LogInformation("start creating Tech posting job");
         _logger.LogInformation("generating posting job");
-        var ollamaResponse = await _ollama.GenerateReply("Gere novo post");
-        if (!ollamaResponse.done || string.IsNullOrEmpty(ollamaResponse.response) ||
-            ollamaResponse.response.StartsWith("desculpe", StringComparison.CurrentCultureIgnoreCase))
-            throw new ApplicationException("Could not generate content, AI failed");
-        _logger.LogInformation("post generated");
-        var generatedResponse = ollamaResponse.response;
-        if (generatedResponse.Length > Constants.GENERATED_CONTENT_SIZE)
-            generatedResponse = await _ollama.AdjustContentSize(generatedResponse, ollamaResponse.context);
+        var geminiResponse = await _gemini.GenerateTechContent();
+        if (geminiResponse.candidates[0].finishReason != "STOP")
+        {
+            throw new Exception("Tech post job generation failed");
+        }
+        var generatedPost = geminiResponse.candidates[0].content.parts[0].text;
         _logger.LogInformation("posting content");
-        generatedResponse = generatedResponse[1..][..^1] + '\n';
-        await blueSky.CreateNewSocialPost(generatedResponse);
+        await blueSky.CreateNewSocialPost(generatedPost);
         _logger.LogInformation("tech posting created");
     }
 

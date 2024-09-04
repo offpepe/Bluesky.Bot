@@ -43,6 +43,14 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(RefKeyObj))]
 [JsonSerializable(typeof(Blob))]
 [JsonSerializable(typeof(External))]
+[JsonSerializable(typeof(GeminiGeneratedResponse))]
+[JsonSerializable(typeof(GeminiCandidate))]
+[JsonSerializable(typeof(GeminiResponseContent))]
+[JsonSerializable(typeof(GeminiRequestPart))]
+[JsonSerializable(typeof(GeminiGenerateTechPostRequest))]
+[JsonSerializable(typeof(GeminiInstruction))]
+[JsonSerializable(typeof(GenerationConfig))]
+
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {
     
