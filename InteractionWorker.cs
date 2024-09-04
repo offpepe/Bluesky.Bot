@@ -51,8 +51,9 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, s
     private async Task ReplyReplies(Notification notification)
     {
         var alreadyProcessed = dataRepository.PostAlreadyProcessed(notification.uri);
-        if (alreadyProcessed || !notification.record.HasValue || !notification.record.Value.reply.HasValue) return;
-        _logger.LogInformation("tracking conversation of conversation {RootUri}", notification.record.Value.reply.Value.root.uri);
+        if (alreadyProcessed || notification.record is not { reply: not null }) return;
+        if (notification.record.Value.text.Contains("\ud83d\udccc")) ;
+        _logger.LogInformation("tracking conversation of conversation {RootUri}", notification.record.Value.reply!.Value.root.uri);
         var conversationContext = await TrackConversationContext(notification.uri);
         if (conversationContext == null) return;
         _logger.LogInformation("conversation tracked");
