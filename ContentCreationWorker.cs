@@ -45,7 +45,7 @@ public class ContentCreationWorker(
         generatedPostContent += '\n';
         _logger.LogInformation("Content generated");
         _logger.LogInformation("Publishing content generated");
-        await blueSky.CreateNewPost(generatedPostContent, contentBase.Value.href);
+        await blueSky.CreateNewContentPost(generatedPostContent, contentBase.Value.href);
         dataRepository.DefineSourceReaded();
         _logger.LogInformation("Content published");
     }

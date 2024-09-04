@@ -18,13 +18,15 @@ public class DataRepository : IDisposable
         b.SetMinimumLevel(LogLevel.Information).AddSimpleConsole();
     }).CreateLogger<DataRepository>();
     
-    private readonly HashSet<string> _processedPosts = new();
+    private HashSet<string> _nonInteractableRepos = new();
+    private HashSet<string> _processedPosts = new();
 
     private readonly string _processedPostsPath = Path.Join(DefaultPath, "data_processed");
+    private readonly string _nonInteratableReposPath = Path.Join(DefaultPath, "uninteratable-list");
 
     public DataRepository()
     {
-        ReadFile();
+        ReadProcessedPosts();
     }
     
     public bool PostAlreadyProcessed(string post)
@@ -32,7 +34,7 @@ public class DataRepository : IDisposable
 
     public void AddProcessedPost(string post) => _processedPosts.Add(post);
 
-    private void ReadFile()
+    private void ReadProcessedPosts()
     {
         if (!Directory.Exists(DefaultPath))
         {
@@ -44,11 +46,13 @@ public class DataRepository : IDisposable
             File.Create(_processedPostsPath);
             return;
         }
-        var processedPosts = File.ReadAllLines(_processedPostsPath);
-        foreach (var post in processedPosts)
+        _processedPosts = File.ReadAllLines(_processedPostsPath).ToHashSet();
+        if (!File.Exists(_nonInteratableReposPath))
         {
-            _processedPosts.Add(post);
+            File.Create(_nonInteratableReposPath);
+            return;
         }
+        _nonInteractableRepos = File.ReadAllLines(_nonInteratableReposPath).ToHashSet();
     }
 
     public SourceReference? GetContentSource()
@@ -79,10 +83,15 @@ public class DataRepository : IDisposable
         if (!_actualSrcIndex.HasValue) return;
         _sourceQueue[_actualSrcIndex.Value].Item3 = true;
     }
+    
+    public bool IsUninteractableRepo(string repo) => _nonInteractableRepos.Contains(repo);
+
+    public void AddNonInteractableRepo(string repo) => _nonInteractableRepos.Add(repo);
 
     public void Dispose()
     {
         File.WriteAllLines(_processedPostsPath, _processedPosts);
+        File.WriteAllLines(_nonInteratableReposPath, _nonInteractableRepos);
         if (_sourceQueue.Length != 0) File.WriteAllLines(Path.Join(DefaultPath, "sources"), _sourceQueue.Select(tq => $"{tq.Item1},{tq.Item2},{tq.Item3}"));
     }
 }

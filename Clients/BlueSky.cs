@@ -22,7 +22,7 @@ public sealed class BlueSky
     private string _token = string.Empty;
     public string Repo = string.Empty;
 
-    private const string BOLHA_TAG = "#bolhadev";
+    private const string BOBBLE_TAG = "#bolhadev";
     private const string ARTICLE_TAG = "#ArtigosDev";
     
     public BlueSky(string url, string email, string password, string embedSourceUrl)
@@ -138,7 +138,7 @@ public sealed class BlueSky
         return await GetPostThread(uri);
     }
 
-    public async Task CreateNewPost(string content, string href)
+    public async Task CreateNewContentPost(string content, string href)
     {
         var facets = AddTags(ref content);
         var requestBody = new PostRequest(Repo, content, facets);
@@ -157,7 +157,24 @@ public sealed class BlueSky
             throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         }
         await Login();
-        await CreateNewPost(content, href);
+        await CreateNewContentPost(content, href);
+    }
+    
+    public async Task CreateNewSocialPost(string content)
+    {
+        var facets = AddBobbleTag(ref content);
+        var requestBody = new PostRequest(Repo, content, facets);
+        var request = JsonSerializer.Serialize(
+            requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
+        var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
+            new StringContent(request, Encoding.UTF8, "application/json"));
+        if (response.IsSuccessStatusCode) return;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        }
+        await Login();
+        await CreateNewSocialPost(content);
     }
 
     private async Task<(byte[], string)> GetImageContent(string href)
@@ -216,21 +233,21 @@ public sealed class BlueSky
 
     private static Facet[] AddTags(ref string content)
     {
-        var merged = BOLHA_TAG + ' ' + ARTICLE_TAG;
+        var merged = BOBBLE_TAG + ' ' + ARTICLE_TAG;
         if (content.Length + merged.Length >= 300) throw new ApplicationException("Unable to add tag. Maximum allowed length is 300");
         content += merged;
-        var bobbleIndex = content.IndexOf(BOLHA_TAG, StringComparison.Ordinal);
+        var bobbleIndex = content.IndexOf(BOBBLE_TAG, StringComparison.Ordinal);
         var articleIndex = content.IndexOf(ARTICLE_TAG, StringComparison.Ordinal);
         return
         [
             new Facet
             {
-                index = new FacetIndex(content.Utf16IndexToUtf8Index(bobbleIndex), content.Utf16IndexToUtf8Index(bobbleIndex + BOLHA_TAG.Length)),
+                index = new FacetIndex(content.Utf16IndexToUtf8Index(bobbleIndex), content.Utf16IndexToUtf8Index(bobbleIndex + BOBBLE_TAG.Length)),
                 features = [
                     new Feature
                     {
                         type = FeatureTypes.TAG,
-                        tag = BOLHA_TAG[1..]
+                        tag = BOBBLE_TAG[1..]
                     }
                 ]
             },
@@ -246,5 +263,23 @@ public sealed class BlueSky
                 ]
             }
         ];
+    }
+    
+    private static Facet[] AddBobbleTag(ref string content)
+    {
+        if (content.Length + BOBBLE_TAG.Length >= 300) throw new ApplicationException("Unable to add tag. Maximum allowed length is 300");
+        content += BOBBLE_TAG;
+        var bobbleIndex = content.IndexOf(BOBBLE_TAG, StringComparison.Ordinal);
+        return
+        [new Facet
+            {
+                index = new FacetIndex(content.Utf16IndexToUtf8Index(bobbleIndex), content.Utf16IndexToUtf8Index(bobbleIndex + BOBBLE_TAG.Length)),
+                features = [new Feature
+                    {
+                        type = FeatureTypes.TAG,
+                        tag = BOBBLE_TAG[1..]
+                    }
+                ]
+            }];
     }
 }

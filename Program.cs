@@ -23,14 +23,19 @@ public class Program
         using var dataRepository = new DataRepository();
         var blueSkyApi = new BlueSky(BlueSky, Email, Password, EmbbedSourceExtractorUrl);
         await blueSkyApi.Login();
-        var interactionWorker = new InteractionWorker(blueSkyApi,  dataRepository, OllamaUrl);
-        var contentCreationWorker = new ContentCreationWorker(blueSkyApi, dataRepository, OllamaUrl);
-        if (args.Any(a => a == "scr"))
+        switch (args.ElementAtOrDefault(0))
         {
-            await contentCreationWorker.ExecuteAsync();
-            return;
+            case "scr":
+                await new ContentCreationWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                break;
+            case "tp":
+                await new TechPostingWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                break;
+            default:
+                await new InteractionWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                break;
         }
-        await interactionWorker.ExecuteAsync();
         Logger.LogInformation(@"Worker ""bsky.bot"" ended at: {0}", DateTime.Now);
     }
+    
 }

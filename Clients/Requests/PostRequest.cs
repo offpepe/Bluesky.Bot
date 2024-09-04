@@ -5,6 +5,17 @@ namespace bsky.bot.Clients.Requests;
 
 public sealed class PostRequest
 {
+    public PostRequest(string repo, string content)
+    {
+        this.repo = repo;
+        record = new Dictionary<string, object>()
+        {
+            {"$type", EventTypes.POST},
+            {"langs", Constants.Langs},
+            {"text", content},
+            {"createdAt", DateTime.Now.ToString("o")}
+        };
+    }
     public PostRequest(string repo, string content, Facet[] facets)
     {
         this.repo = repo;

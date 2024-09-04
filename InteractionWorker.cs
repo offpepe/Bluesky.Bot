@@ -50,8 +50,19 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, s
 
     private async Task ReplyReplies(Notification notification)
     {
+        if (dataRepository.IsUninteractableRepo(notification.author.did))
+        {
+            _logger.LogInformation("repo is uninteractable, skipping...");
+            return;
+        }
         var alreadyProcessed = dataRepository.PostAlreadyProcessed(notification.uri);
         if (alreadyProcessed || notification.record is not { reply: not null }) return;
+        if (notification.record.Value.text.Contains("!bksy.bot.mute"))
+        {
+            dataRepository.AddNonInteractableRepo(notification.author.did);
+            dataRepository.AddProcessedPost(notification.uri);
+            return;
+        }
         if (notification.record.Value.text.Contains("\ud83d\udccc")) ;
         _logger.LogInformation("tracking conversation of conversation {RootUri}", notification.record.Value.reply!.Value.root.uri);
         var conversationContext = await TrackConversationContext(notification.uri);
