@@ -19,8 +19,8 @@ public sealed class BlueSky
     private readonly string _embedSourceExtractorUrl; 
     private readonly string _email;
     private readonly string _password;
-    private string _token;
-    public string Repo;
+    private string _token = string.Empty;
+    public string Repo = string.Empty;
 
     private const string BOLHA_TAG = "#bolhadev";
     private const string ARTICLE_TAG = "#ArtigosDev";
@@ -182,7 +182,7 @@ public sealed class BlueSky
             await response.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.UploadBlob
         );
-        return (result.blob.Reference.Link, result.blob.MimeType, result.blob.Size);
+        return (result.blob.Reference!.Link, result.blob.MimeType, result.blob.Size);
     }   
 
     private async Task<EmbedData> GetEmbedData(string href)

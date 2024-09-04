@@ -6,7 +6,7 @@ public sealed class Facet
 {
     [JsonPropertyName("$type")] public string type { get; } = "app.bsky.richtext.facet";
     public FacetIndex index { get; set; }
-    public Feature[] features { get; set; }
+    public Feature[] features { get; set; } = Array.Empty<Feature>();
 }
 
 public readonly record struct FacetIndex(int byteStart, int byteEnd);
