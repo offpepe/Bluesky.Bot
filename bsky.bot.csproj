@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>dotnet-bluesky_bot-641f86b9-a220-482c-ac28-7b8034f84f68</UserSecretsId>
         <PublishAot>true</PublishAot>
+        <IsAotCompatible>true</IsAotCompatible>
         <RootNamespace>bsky.bot</RootNamespace>
     </PropertyGroup>
 
