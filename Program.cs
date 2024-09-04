@@ -28,6 +28,7 @@ public class Program
         if (args.Any(a => a == "scr"))
         {
             await contentCreationWorker.ExecuteAsync();
+            return;
         }
         await interactionWorker.ExecuteAsync();
         Logger.LogInformation(@"Worker ""bsky.bot"" ended at: {0}", DateTime.Now);
