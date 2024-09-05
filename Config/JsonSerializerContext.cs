@@ -23,7 +23,6 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(ThreadPostReply))]
 [JsonSerializable(typeof(GetPostResponse))]
 [JsonSerializable(typeof(ConversationRep))]
-[JsonSerializable(typeof(ReplyDestination))]
 [JsonSerializable(typeof(ConversationReply))]
 [JsonSerializable(typeof(GenerateReplyRequest))]
 [JsonSerializable(typeof(GenerateReplyResponse))]
@@ -50,6 +49,11 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(GeminiGenerateTechPostRequest))]
 [JsonSerializable(typeof(GeminiInstruction))]
 [JsonSerializable(typeof(GenerationConfig))]
+[JsonSerializable(typeof(GeminiGeneratePostReplyRequest))]
+[JsonSerializable(typeof(LikeRequest))]
+[JsonSerializable(typeof(RecordRequest))]
+[JsonSerializable(typeof(Subject))]
+[JsonSerializable(typeof(Subject[]))]
 
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {

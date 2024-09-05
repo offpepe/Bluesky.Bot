@@ -10,6 +10,8 @@ public class Program
     private static readonly string Email = Environment.GetEnvironmentVariable("bluesky_email") ?? throw new ApplicationException("variable $bluesky_email not found");
     private static readonly string Password = Environment.GetEnvironmentVariable("bluesky_password") ?? throw new ApplicationException("variable $bluesky_password not found");
     private static readonly string EmbbedSourceExtractorUrl = Environment.GetEnvironmentVariable("embbed_source_url") ?? throw new ApplicationException("variable $embbed_source_url not found");
+    private static readonly bool BotAccount =
+        bool.TryParse(Environment.GetEnvironmentVariable("bot_account"), out var botAccount) && botAccount;  
     
     private static readonly ILogger<Program> Logger = LoggerFactory.Create(b =>
     {
@@ -32,7 +34,7 @@ public class Program
                 await new TechPostingWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
                 break;
             default:
-                await new InteractionWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                await new InteractionWorker(blueSkyApi, dataRepository, BotAccount).ExecuteAsync();
                 break;
         }
         Logger.LogInformation(@"Worker ""bsky.bot"" ended at: {0}", DateTime.Now);

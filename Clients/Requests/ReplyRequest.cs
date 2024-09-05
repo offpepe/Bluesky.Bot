@@ -1,4 +1,5 @@
 using bsky.bot.Clients.Enums;
+using bsky.bot.Clients.Models;
 
 namespace bsky.bot.Clients.Requests;
 
@@ -23,6 +24,5 @@ public sealed class ReplyRequest
     
 }
 
-public readonly record struct Reply(ReplyDestination parent, ReplyDestination root);
+public readonly record struct Reply(Subject parent, Subject root);
 
-public readonly record struct ReplyDestination(string cid, string uri);

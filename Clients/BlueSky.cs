@@ -1,9 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
@@ -129,7 +127,7 @@ public sealed class BlueSky
             return JsonSerializer.Deserialize(
                 await response.Content.ReadAsStreamAsync(),
                 BlueSkyBotJsonSerializerContext.Default.GetPostThread
-            )!;
+            );
         if (response.StatusCode != HttpStatusCode.Unauthorized)
         {
             throw new HttpRequestException($"Failed to get post thread by uri: {uri}, response: {response.StatusCode}\n Response: {response.Content.ReadAsStringAsync().Result}");
@@ -177,6 +175,20 @@ public sealed class BlueSky
         await CreateNewSocialPost(content);
     }
 
+    public async Task LikePost(string uri, string cid)
+    {
+        var request = JsonSerializer.Serialize(new LikeRequest(Repo, uri, cid),
+            BlueSkyBotJsonSerializerContext.Default.LikeRequest);
+        var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
+            new StringContent(request, Encoding.UTF8, "application/json"));
+        if (response.IsSuccessStatusCode) return;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            throw new HttpRequestException(
+                $"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        await Login();
+        await LikePost(uri, cid);
+    }
+
     private async Task<(byte[], string)> GetImageContent(string href)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, href);
@@ -194,7 +206,6 @@ public sealed class BlueSky
         request.Content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
         using var response = await _httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to upload blob: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
-        var contentString = await response.Content.ReadAsStringAsync();
         var result = JsonSerializer.Deserialize(
             await response.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.UploadBlob
