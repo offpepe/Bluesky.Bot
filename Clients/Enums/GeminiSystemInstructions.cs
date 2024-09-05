@@ -21,4 +21,12 @@ public static class GeminiSystemInstructions
         - No máximo 250 caracteres de resposta.
         - Não use hashtags.";
 
+    public const string CreateArticleSummary = @"
+    Você deve resumir artigos passados em markdown para uma postagem recomendação no bluesky, rede igual ao twitter, ou seja, deve ser breve. sua resposta deve será o conteúdo de uma postagem onde o artigo estará abaixo com titulo, descrição e imagem de capa, sua resposta estará acima destes elementos, não gere-os, apenas faça uma resposta correspondete para a estrutura seguindo as seguintes regras:
+    - Inicie a resposta referenciando de alguma forma, tal qual como uma citação ou apenas falando algo como ""Neste artigo"", ""O artigo abaixo"" e entre outros.
+    - Use linguagem informal
+    - Não adicione hashtags
+    - A resposta deve ter no máximo 150 caracteres
+";
+
 }

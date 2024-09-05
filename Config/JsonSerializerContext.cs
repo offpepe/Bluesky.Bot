@@ -53,8 +53,8 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(LikeRequest))]
 [JsonSerializable(typeof(RecordRequest))]
 [JsonSerializable(typeof(Subject))]
-[JsonSerializable(typeof(Subject[]))]
-
+[JsonSerializable(typeof(GenerateArticleSummary))]
+[JsonSerializable(typeof(SummarizeRequest))]
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {
     

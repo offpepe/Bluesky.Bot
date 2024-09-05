@@ -28,7 +28,7 @@ public class Program
         switch (args.ElementAtOrDefault(0))
         {
             case "scr":
-                await new ContentCreationWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                await new ContentCreationWorker(blueSkyApi, dataRepository).ExecuteAsync();
                 break;
             case "tp":
                 await new TechPostingWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();

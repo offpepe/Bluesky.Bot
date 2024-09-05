@@ -1,6 +1,8 @@
+using System.Collections;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
@@ -57,6 +59,28 @@ public class Gemini
             BlueSkyBotJsonSerializerContext.Default.GeminiGeneratePostReplyRequest);
         var response = await _httpClient.PostAsync(string.Empty,
             new StringContent(requestBody, Encoding.UTF8, "application/json"));
+        return await ExtractGeneratedResponse(response);
+    }
+
+    public async Task<string> GenerateArticleSummary(string articleContent)
+    {
+        EnsureGenerationLimit();
+        var request = JsonSerializer.Serialize(new GenerateArticleSummary(articleContent), BlueSkyBotJsonSerializerContext.Default.GenerateArticleSummary);
+        var response = await _httpClient.PostAsync(string.Empty, new StringContent(request, Encoding.UTF8, "application/json"));
+        return await ExtractGeneratedResponse(response);
+    }
+
+    public async Task<string> Summarize(string systemInstructions, IEnumerable<GeminiInstruction> instruction)
+    {
+        EnsureGenerationLimit();
+        var request = JsonSerializer.Serialize(new SummarizeRequest(systemInstructions, instruction.ToArray()),
+        BlueSkyBotJsonSerializerContext.Default.SummarizeRequest);
+        var response = await _httpClient.PostAsync(string.Empty, new StringContent(request, Encoding.UTF8, "application/json"));
+        return await ExtractGeneratedResponse(response);
+    }
+
+    private async Task<string> ExtractGeneratedResponse(HttpResponseMessage response)
+    {
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Gemini generation failed | StatusCode: {response.StatusCode} \n Result: {await response.Content.ReadAsStringAsync()}");
@@ -68,7 +92,7 @@ public class Gemini
             throw new HttpRequestException("Gemini generation failed");
         }
         totalGenerations++;
-        return result.candidates[0].content.parts[0].text;
+        return result.candidates[0].content.parts[0].text ;
     }
 
     private void EnsureGenerationLimit()

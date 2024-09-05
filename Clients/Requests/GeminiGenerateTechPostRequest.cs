@@ -19,7 +19,7 @@ public readonly struct GeminiGenerateTechPostRequest
     ];
 
     public GenerationConfig generationConfig { get; } = new (
-        2,
+        1.5,
         64,
         0.95,
         8192,

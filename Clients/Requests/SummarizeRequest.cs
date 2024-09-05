@@ -3,21 +3,16 @@ using bsky.bot.Clients.Models;
 
 namespace bsky.bot.Clients.Requests;
 
-public readonly struct GeminiGeneratePostReplyRequest
+public readonly struct SummarizeRequest(string systemInstruction, GeminiInstruction[] contents)
 {
-    public GeminiGeneratePostReplyRequest(GeminiInstruction[] context)
-    {
-        contents = context;
-    }
     public GeminiInstruction systemInstruction { get; } = new (
         "user",
-        [new GeminiRequestPart(GeminiSystemInstructions.ReplyPost)]
+        [new GeminiRequestPart(systemInstruction)]
     );
 
-    public GeminiInstruction[] contents { get; init; }
-
+    public GeminiInstruction[] contents { get; } = contents;
     public GenerationConfig generationConfig { get; } = new (
-        1.3,
+        1,
         64,
         0.95,
         8192,
