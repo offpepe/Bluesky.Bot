@@ -3,7 +3,7 @@ using bsky.bot.Clients.Models;
 
 namespace bsky.bot.Clients.Requests.Gemini;
 
-public sealed class TechPostRequest : GeminiRequest
+public sealed class TechPostRequest : LLMRequest
 {
     public TechPostRequest()
     {

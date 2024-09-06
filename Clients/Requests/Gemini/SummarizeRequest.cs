@@ -2,7 +2,7 @@ using bsky.bot.Clients.Models;
 
 namespace bsky.bot.Clients.Requests.Gemini;
 
-public sealed class SummarizeRequest : GeminiRequest
+public sealed class SummarizeRequest : LLMRequest
 {
     public SummarizeRequest(string systemInstruction, GeminiInstruction[] contents)
     {

@@ -19,6 +19,7 @@ public static class GeminiSystemInstructions
         - Nem sempre precisa ser uma pergunta.
         - Evite usar hashtags.
         - No máximo 250 caracteres de resposta.
+        - Não adicione aspas em volta da resposta.
         - Não use hashtags.";
 
     public const string CreateArticleSummary = @"

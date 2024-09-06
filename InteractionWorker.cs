@@ -1,14 +1,15 @@
+using System.Runtime.CompilerServices;
 using bsky.bot.Clients;
 using bsky.bot.Clients.Enums;
+using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Storage;
 
 namespace bsky.bot;
 
-public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, bool isBotAccount = false)
+public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, ILllmModel model, bool isBotAccount = false)
 {
-    
-    private readonly Gemini _gemini = new Gemini("gemini-1.5-flash");
     private readonly ILogger<InteractionWorker> _logger = LoggerFactory.Create(b =>
     {
         b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
@@ -20,7 +21,7 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, b
         var list = await blueSky.ListNotifications();
         var replies = list.notifications.Where(n => n.reason == NotificationReasons.REPLY);
         var newFollowers = list.notifications.Where(n => n.reason == NotificationReasons.FOLLOW).Select(FollowBack).ToArray();
-        if (!replies.Any() && !newFollowers.Any())
+        if (!replies.Any() && newFollowers.Length == 0)
         {
             _logger.LogInformation("none new notifications to interact, interaction worker stopped");
             return;
@@ -68,14 +69,13 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, b
         }
         _logger.LogInformation("conversation tracked");
         _logger.LogInformation("generating response...");
-        var generatedContent = await _gemini.GeneratePostReply(conversationContext);
+        var generatedContent = await model.Generate(new PostReplyRequest(conversationContext));
         _logger.LogInformation("response generated");
         var reply = notification.record.Value.reply.Value with
         {
             parent = new Subject(notification.uri, notification.cid)
         };
         _logger.LogInformation("replying user {DisplayName} on post {uri}", notification.author.displayName, notification.uri);
-        if (!isBotAccount) generatedContent = AddTag(generatedContent);
         await blueSky.LikePost(notification.uri, notification.cid);
         await blueSky.Reply(reply, generatedContent);
         dataRepository.AddProcessedPost(notification.uri);

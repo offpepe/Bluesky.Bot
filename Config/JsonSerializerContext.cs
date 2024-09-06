@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
+using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Dtos;
 
@@ -46,15 +47,16 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(GeminiCandidate))]
 [JsonSerializable(typeof(GeminiResponseContent))]
 [JsonSerializable(typeof(GeminiRequestPart))]
-[JsonSerializable(typeof(GeminiGenerateTechPostRequest))]
+[JsonSerializable(typeof(TechPostRequest))]
 [JsonSerializable(typeof(GeminiInstruction))]
 [JsonSerializable(typeof(GenerationConfig))]
-[JsonSerializable(typeof(GeminiGeneratePostReplyRequest))]
+[JsonSerializable(typeof(PostReplyRequest))]
 [JsonSerializable(typeof(LikeRequest))]
 [JsonSerializable(typeof(RecordRequest))]
 [JsonSerializable(typeof(Subject))]
-[JsonSerializable(typeof(GenerateArticleSummary))]
+[JsonSerializable(typeof(ArticleSummaryRequest))]
 [JsonSerializable(typeof(SummarizeRequest))]
+[JsonSerializable(typeof(LLMRequest))]
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {
     

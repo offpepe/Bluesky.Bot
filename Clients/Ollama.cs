@@ -2,13 +2,15 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using bsky.bot.Clients.Enums;
+using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Config;
+using bsky.bot.Utils;
 
 namespace bsky.bot.Clients;
 
-public class Ollama
+public class Ollama : ILllmModel
 {
     private readonly HttpClient _httpClient;
     private readonly string _model;
@@ -27,7 +29,18 @@ public class Ollama
         _httpClient.Timeout = TimeSpan.FromMinutes(30);
     }
 
-    public async Task<GenerateReplyResponse> GenerateReply(string replyText)
+    public async Task<string> Generate(LLMRequest request)
+    {
+        var ollamaResponse = await RequestOllama(request.ConvertRequestToString());
+        var generatedResponse = ollamaResponse.response;
+        if (ollamaResponse.response.Length > Constants.GENERATED_CONTENT_SIZE_LIMIT)
+        {
+            generatedResponse = await AdjustContentSize(generatedResponse, ollamaResponse.context);
+        }
+        return generatedResponse;
+    }
+
+    private async Task<GenerateReplyResponse> RequestOllama(string replyText)
     {
         var request = JsonSerializer.Serialize(
             new GenerateReplyRequest(replyText, _model),
@@ -43,7 +56,7 @@ public class Ollama
         );
     }
     
-    public async Task<GenerateReplyResponse> GenerateReply(string replyText, int[] context)
+    private async Task<GenerateReplyResponse> RequestOllama(string replyText, int[] context)
     {
         var request = JsonSerializer.Serialize(
             new GenerateReplyRequest(replyText, _model, context),
@@ -59,12 +72,12 @@ public class Ollama
         );
     }
 
-    public async Task<string> AdjustContentSize(string content, int[] context) 
+    private async Task<string> AdjustContentSize(string content, int[] context) 
     {
-        while (content.Length >= Constants.GENERATED_CONTENT_SIZE)
+        while (content.Length >= Constants.GENERATED_CONTENT_SIZE_LIMIT)
         {
             _logger.LogInformation("Adjusting content size");
-            var adjustedReply = await GenerateReply($"Resuma: {content}", context);
+            var adjustedReply = await RequestOllama($"Resuma: {content}", context);
             content = adjustedReply.response;
             context = adjustedReply.context;
         }

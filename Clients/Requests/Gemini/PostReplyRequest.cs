@@ -3,7 +3,7 @@ using bsky.bot.Clients.Models;
 
 namespace bsky.bot.Clients.Requests.Gemini;
 
-public sealed class PostReplyRequest : GeminiRequest
+public sealed class PostReplyRequest : LLMRequest
 {
     public PostReplyRequest(GeminiInstruction[] context)
     {
