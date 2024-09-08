@@ -30,14 +30,13 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
     {
         _logger.LogInformation("start creating Tech posting job");
         _logger.LogInformation("searching social interaction to base response");
-        // var feeds = (await blueSky.GetSkyline()).AsEnumerable();
-        var feeds = Enumerable.Empty<SkylineObject>();
-        for (var i = 1; i <= 5; i++)
+        var feeds = (await blueSky.GetSkyline()).AsEnumerable();
+        await Parallel.ForAsync(0, 10, async (i, _) =>
         {
-            feeds = feeds
-                .Concat((await blueSky.SearchTechPosts(SEARCH_TERM, i))
+            feeds = feeds.Concat((await blueSky
+                        .SearchTechPosts(SEARCH_TERM, i + 1))
                     .Select(p => new SkylineObject(p, null)));
-        }
+        });
         feeds = feeds.DistinctBy(f => f.post.cid);
         _logger.LogInformation("finished searching tech posts");
         _logger.LogInformation("generating posting job");

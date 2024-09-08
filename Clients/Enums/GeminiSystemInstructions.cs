@@ -21,7 +21,6 @@ Para gerar a sua resposta siga as seguintes regras:
  - No máximo 250 caracteres de resposta.
  - Não adicione aspas em volta da resposta.
  - Não use emojis.
- - Não use hashtags.
  - Não responda diretamente às mensagens entregues, elas são estritamente para basear a sua resposta.
 ";
 
