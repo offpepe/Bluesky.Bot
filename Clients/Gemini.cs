@@ -94,14 +94,14 @@ public class Gemini : ILllmModel
 
     private async Task<GeminiInstruction[]> UpdateContentUri(GeminiInstruction[] instructions)
     {
-        await Task.WhenAll(instructions.Select(ChangeFileUriToGeminiDomain));
+        await Task.WhenAll(instructions[0].parts.Select(ChangeFileUriToGeminiDomain));
         return instructions;
     }
 
-    private async Task ChangeFileUriToGeminiDomain(GeminiInstruction instruction)
+    private async Task ChangeFileUriToGeminiDomain(GeminiRequestPart part)
     {
-        if (instruction.parts.Length == 1) return;
-        instruction.parts[0].fileData = await UploadFile(instruction.parts[0].fileData!.fileUri);
+        if (part.fileData == null) return;
+        part.fileData = await UploadFile(part.fileData.fileUri);
     }
 
     private async Task<string> AdjustContentSize(GeminiInstruction[] instructions)

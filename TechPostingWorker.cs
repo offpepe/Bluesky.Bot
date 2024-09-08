@@ -30,8 +30,7 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
     {
         _logger.LogInformation("start creating Tech posting job");
         _logger.LogInformation("searching social interaction to base response");
-        // var feeds = (await blueSky.GetSkyline()).AsEnumerable();
-        var feeds = Enumerable.Empty<SkylineObject>();
+        var feeds = (await blueSky.GetSkyline()).AsEnumerable();
         await Parallel.ForAsync(0, 10, async (i, _) =>
         {
             feeds = feeds.Concat((await blueSky
@@ -50,10 +49,9 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
 
     private static TechPostRequest ConvertSkylineToTechPostRequest(SkylineObject[] feeds)
     {
-        var instructions = new List<GeminiInstruction>();
+        var contents = new List<GeminiRequestPart>();
         foreach (var feed in feeds)
         {
-            var contents = new List<GeminiRequestPart>();
             if (feed.post.embed is { type: EmbedTypes.ImageView })
             {   
                 if (feed.post.record.reply.HasValue) continue;
@@ -63,10 +61,8 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
                     ));
             }
             contents.Add(new GeminiRequestPart(TrackFullConversation(feed.post, feed.reply)));
-            instructions.Add(new GeminiInstruction("user", contents.ToArray()));
         }
-
-        return new TechPostRequest(instructions.ToArray());
+        return new TechPostRequest([new GeminiInstruction("user", contents.ToArray())]);
     }
 
     private static string TrackFullConversation(Post post, PostReply? reply)
