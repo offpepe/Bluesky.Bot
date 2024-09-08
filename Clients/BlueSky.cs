@@ -142,9 +142,10 @@ public sealed class BlueSky
         await CreateNewContentPost(content, href);
     }
     
-    public async Task CreateNewSocialPost(string content)
+    public async Task CreateNewSocialPost(string content, bool isTech)
     {
-        var facets = AddBobbleTag(ref content);
+        var facets = Array.Empty<Facet>();
+        if (isTech) facets = AddBobbleTag(ref content);
         var requestBody = new PostRequest(Repo, content, facets);
         var request = JsonSerializer.Serialize(
             requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
@@ -156,7 +157,7 @@ public sealed class BlueSky
             throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         }
         await Login();
-        await CreateNewSocialPost(content);
+        await CreateNewSocialPost(content, isTech);
     }
 
     public async Task LikePost(string uri, string cid)

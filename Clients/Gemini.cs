@@ -66,7 +66,30 @@ public class Gemini : ILllmModel
             generatedContent = await AdjustContentSize(instructions);
         }
         _totalGenerations++;
-        return generatedContent;
+        return generatedContent!;
+    }
+
+    public async Task<bool> IsTechContent(string content)
+    {
+        EnsureGenerationLimit();
+        var requestBody = JsonSerializer.Serialize(new VerifyTechContentRequest(content),
+            BlueSkyBotJsonSerializerContext.Default.LLMRequest);
+        var response = await _httpClient.PostAsync(string.Empty, new StringContent(requestBody, Encoding.UTF8, "application/json"));
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException(
+                $"Gemini generation failed | StatusCode: {response.StatusCode} \n Result: {await response.Content.ReadAsStringAsync()}");
+        var result = JsonSerializer.Deserialize(
+            await response.Content.ReadAsStreamAsync(),
+            BlueSkyBotJsonSerializerContext.Default.GeminiGeneratedResponse);
+        if (result.candidates[0].finishReason != "STOP")
+        {
+            throw new HttpRequestException("Gemini generation failed");
+        }
+
+        var resultStr = result.candidates[0].content.parts[0].text
+            ?.Replace(' ', '\0')
+            .ReplaceLineEndings(string.Empty);
+        return bool.TryParse(resultStr, out var isTech) && isTech;
     }
 
     private async Task<GeminiInstruction[]> UpdateContentUri(GeminiInstruction[] instructions)

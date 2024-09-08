@@ -15,7 +15,7 @@ public sealed class TechPostRequest : LLMRequest
         ];
         systemInstruction = new GeminiInstruction(
             "user",
-            [new GeminiRequestPart(GeminiSystemInstructions.CreateTechPost)]
+            [new GeminiRequestPart(GeminiSystemInstructions.CreatePost)]
         );
         generationConfig = new GenerationConfig(
             2,
@@ -31,7 +31,7 @@ public sealed class TechPostRequest : LLMRequest
         contents = instruction;
         systemInstruction = new GeminiInstruction(
             "user",
-            [new GeminiRequestPart(GeminiSystemInstructions.CreateTechPost)]
+            [new GeminiRequestPart(GeminiSystemInstructions.CreatePost)]
         );
         generationConfig = new GenerationConfig(
             2,
