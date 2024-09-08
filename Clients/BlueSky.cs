@@ -27,7 +27,7 @@ public sealed class BlueSky
     {
         _email = email;
         _password = password;
-        _httpClient = new HttpClient();
+        _httpClient = new HttpClient(new BskyHttpHandler<BlueSky>());
         _httpClient.BaseAddress = new Uri(url);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _embedSourceExtractorUrl = embedSourceUrl;
@@ -104,22 +104,6 @@ public sealed class BlueSky
         await Reply(reply, text);
     }
 
-    public async Task<Post> GetPostByUri(string uri)
-    {
-        var response = await _httpClient.GetAsync($"app.bsky.feed.getPosts?uris={uri}");
-        if (response.IsSuccessStatusCode)
-            return JsonSerializer.Deserialize(
-                await response.Content.ReadAsStreamAsync(),
-                BlueSkyBotJsonSerializerContext.Default.GetPostResponse
-            )!.posts[0];
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-        {
-            throw new HttpRequestException($"Failed to get post by uri: {uri}, response: {response.StatusCode}\n Response: {response.Content.ReadAsStringAsync().Result}");
-        }
-        await Login();
-        return await GetPostByUri(uri);
-    }
-
     public async Task<GetPostThread> GetPostThread(string uri)
     {
         var response = await _httpClient.GetAsync($"app.bsky.feed.getPostThread?uri={uri}");
@@ -189,6 +173,32 @@ public sealed class BlueSky
         await LikePost(uri, cid);
     }
 
+    public async Task<Post[]> SearchTechPosts(string searchValue, int cursor)
+    {
+        var response = await _httpClient.GetAsync($"app.bsky.feed.searchPosts?q={searchValue}&cursor={cursor}&&limit=100");
+        if (response.IsSuccessStatusCode)
+            return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
+                BlueSkyBotJsonSerializerContext.Default.SearchPostsResponse).posts;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            throw new HttpRequestException(
+                $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        await Login();
+        return await SearchTechPosts(searchValue, cursor);
+    }
+
+    public async Task<SkylineObject[]> GetSkyline()
+    {
+        var response = await _httpClient.GetAsync("app.bsky.feed.getTimeline?limit=100");
+        if (response.IsSuccessStatusCode)
+            return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
+                BlueSkyBotJsonSerializerContext.Default.GetSkylineResponse).feed;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            throw new HttpRequestException(
+                $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        await Login();
+        return await GetSkyline();
+    }
+
     private async Task<(byte[], string)> GetImageContent(string href)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, href);
@@ -210,7 +220,8 @@ public sealed class BlueSky
             await response.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.UploadBlob
         );
-        return (result.blob.Reference!.Link, result.blob.MimeType, result.blob.Size);
+        var resultStr = await response.Content.ReadAsStringAsync();
+        return (result.blob.Reference!.link, result.blob.MimeType, result.blob.Size);
     }   
 
     private async Task<EmbedData> GetEmbedData(string href)

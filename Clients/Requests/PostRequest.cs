@@ -1,5 +1,6 @@
 using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Models;
+using bsky.bot.Utils;
 
 namespace bsky.bot.Clients.Requests;
 
@@ -32,6 +33,6 @@ public sealed class PostRequest
     public string repo { get; init; }
     public Dictionary<string, object> record { get; init; }
 
-    public void AddEmbed(ref EmbedData data) => record["embed"] = Embed.GetEmbed(data.uri, data.title, data.description, data.blob, data.mimeType, data.size);
+    public void AddEmbed(ref EmbedData data) => record["embed"] = EmbedDataUtils.GetEmbed(data.uri, data.title, data.description, data.blob, data.mimeType, data.size);
 
 }

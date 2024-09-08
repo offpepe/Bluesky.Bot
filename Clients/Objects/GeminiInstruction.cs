@@ -1,5 +1,5 @@
 namespace bsky.bot.Clients.Models;
 
-public readonly record struct GeminiInstruction(
+public sealed record GeminiInstruction(
     string role, 
     GeminiRequestPart[] parts);

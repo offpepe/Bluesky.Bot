@@ -6,6 +6,6 @@ namespace bsky.bot.Clients.Requests;
 public abstract class LLMRequest
 {
     public GeminiInstruction systemInstruction { get; init; }
-    public GeminiInstruction[] contents { get; init; }
+    public GeminiInstruction[] contents { get; set; }
     public GenerationConfig generationConfig { get; init; }
 }

@@ -1,11 +1,18 @@
+using bsky.bot.Clients.Requests;
+
 namespace bsky.bot.Clients.Models;
 
-public readonly record struct Post(
+public sealed record Post(
     string uri,
     string cid,
     Author author,
-    Viewer viewer,
+    Viewer? viewer,
     Record record,
+    PostEmbed? embed,
+    Post? parent,
+    int likeCount,
     int replyCount,
     int repostCount,
-    int quoteCounte);
+    int quoteCount);
+
+    

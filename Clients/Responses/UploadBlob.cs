@@ -3,6 +3,6 @@ using bsky.bot.Clients.Models;
 
 namespace bsky.bot.Clients.Responses;
 
-public readonly record struct UploadBlob(Blob blob);
+public readonly record struct UploadBlob(Image blob);
 
 

@@ -13,5 +13,7 @@ public static class RequestExtensions
         _ => request.contents.Aggregate(string.Empty,
             (current, instruction) => current + $"{instruction.role}: {instruction.parts[0].text}\n")
     };
-
+    
+    public static string ConvertPostIntoConversationContext(this IEnumerable<Post> posts)
+        => posts.Aggregate(string.Empty, (l, r) => l + $"@{r.author.handle}: {r.record.text.ReplaceLineEndings(string.Empty)}\n");
 }

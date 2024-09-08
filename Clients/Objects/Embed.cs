@@ -1,34 +1,51 @@
-using bsky.bot.Clients.Enums;
+using System.Text.Json.Serialization;
 
 namespace bsky.bot.Clients.Models;
 
-public static class Embed
+public sealed class RecordEmbed
 {
-    public static Dictionary<string, object> GetEmbed(string uri, string title, string description, string blob,
-        string mimeType, int size) => new()
-    {
-        { "$type", EmbedTypes.External },
-        {
-            "external", new External(
-                uri, 
-                title,
-                description,
-                GetThumbValue(blob, mimeType, size)
-            )
-        }
-    };
-
-    private static Dictionary<string, object> GetThumbValue(string blob, string mimeType, int size) => new()
-    {
-        { "$type", "blob" },
-        { "ref", new Dictionary<string, string>() { { "$link", blob } } },
-        { "mimeType", mimeType },
-        { "size", size }
-    };
+    [JsonPropertyName("$type")] public string type { get; init; }
+    public EmbedImage[] images { get; init; }
+    public Subject? record { get; init; }
+    public RecordEmbed? media { get; init; }
+    public External? external { get; init; }
 }
-
-public readonly record struct External(
-    string uri,
-    string title,
-    string description,
-    Dictionary<string, object> thumb);
+public readonly record struct AspectRatio(int heigth, int width);
+public readonly record struct External()
+{
+    public string description { get; init; }
+    public object? thumb { get; init; }
+    public string title { get; init; }
+    public string uri { get; init; }
+}
+public readonly record struct ExternalPost()
+{
+    public string description { get; init; }
+    public string? thumb { get; init; }
+    public string title { get; init; }
+    public string uri { get; init; }
+}
+public readonly struct PostEmbed
+{
+    [JsonPropertyName("$type")] public string type { get; init; }
+    public PostEmbedRecord? record { get; init; }
+    public RecordEmbed? media { get; init; }
+    public External? external { get; init; }
+    public EmbedImage[] images { get; init; }
+}
+public sealed class PostEmbedRecord
+{
+    [JsonPropertyName("$type")] public string type { get; init; }
+    public string uri { get; init; }
+    public string cid { get; init; }
+    public Author? author { get; init; }
+    public Record? value { get; init; }
+    public PostEmbedRecord? record { get; init; }
+}
+public readonly record struct EmbedImage(
+    string? thumb,
+    string? fullsize,
+    string alt,
+    AspectRatio aspectRatio,
+    Image image
+);

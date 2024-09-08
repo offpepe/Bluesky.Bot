@@ -4,5 +4,5 @@ namespace bsky.bot.Clients.Models;
 
 public class RefKeyObj
 {
-    [JsonPropertyName("$link")] public string Link { get; set; } = null!;
+    [JsonPropertyName("$link")] public string link { get; set; } = null!;
 }

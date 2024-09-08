@@ -5,12 +5,12 @@ namespace bsky.bot.Clients.Requests.Gemini;
 
 public sealed class TechPostRequest : LLMRequest
 {
-    public TechPostRequest()
+    public TechPostRequest(string context)
     {
         contents =
         [
             new GeminiInstruction("user", [
-                new GeminiRequestPart("Gere novo post")
+                new GeminiRequestPart(context)
             ])
         ];
         systemInstruction = new GeminiInstruction(
@@ -18,7 +18,23 @@ public sealed class TechPostRequest : LLMRequest
             [new GeminiRequestPart(GeminiSystemInstructions.CreateTechPost)]
         );
         generationConfig = new GenerationConfig(
-            1.5,
+            2,
+            64,
+            0.95,
+            8192,
+            "text/plain"
+        );
+    }
+    
+    public TechPostRequest(GeminiInstruction[] instruction)
+    {
+        contents = instruction;
+        systemInstruction = new GeminiInstruction(
+            "user",
+            [new GeminiRequestPart(GeminiSystemInstructions.CreateTechPost)]
+        );
+        generationConfig = new GenerationConfig(
+            2,
             64,
             0.95,
             8192,
