@@ -54,8 +54,8 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
         foreach (var feed in feeds)
         {
             var contents = new List<GeminiRequestPart>();
-            if (feed.post.embed.HasValue && feed.post.embed.Value.type == EmbedTypes.ImageView)
-            {
+            if (feed.post.embed is { type: EmbedTypes.ImageView })
+            {   
                 if (feed.post.record.reply.HasValue) continue;
                 contents.Add(new GeminiRequestPart(
                     feed.post.embed.Value.images[0].fullsize!,
