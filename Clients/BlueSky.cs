@@ -219,7 +219,9 @@ public sealed class BlueSky
         return (await GetSkyline()).AsEnumerable()
             .Concat((await SearchTechPosts(SEARCH_TERM, 1))
                 .Select(p => new SkylineObject(p, null)))
-            .DistinctBy(f => f.post.cid).ToArray();
+            .DistinctBy(f => f.post.cid)
+            .Take(150)
+            .ToArray();
     }
     private async Task<(byte[], string)> GetImageContent(string href)
     {
