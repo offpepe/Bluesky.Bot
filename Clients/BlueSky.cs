@@ -73,20 +73,20 @@ public sealed class BlueSky
         return await ListNotifications();
     }
 
-    public async Task FollowBack(Notification notification)
+    public async Task FollowBack(string did)
     {
         var request = JsonSerializer.Serialize(
-            new FollowRequest(Repo, notification.author.did),
+            new FollowRequest(Repo, did),
             BlueSkyBotJsonSerializerContext.Default.FollowRequest
         );
         var httpResponse = await _httpClient.PostAsync("com.atproto.repo.createRecord", new StringContent(request, Encoding.UTF8, "application/json"));
         if (httpResponse.IsSuccessStatusCode) return;
         if (httpResponse.StatusCode != HttpStatusCode.Unauthorized)
         {
-            throw new HttpRequestException($"Failed to follow user {notification.author.displayName} | blocked: {notification.viewer.blockedBy} | StatusCode {httpResponse.StatusCode}\n Response: {httpResponse.Content.ReadAsStringAsync().Result}");
+            throw new HttpRequestException($"Failed to follow user did | StatusCode {httpResponse.StatusCode}\n Response: {httpResponse.Content.ReadAsStringAsync().Result}");
         }
         await Login();
-        await FollowBack(notification);
+        await FollowBack(did);
     }
 
     public async Task Reply(Reply reply, string text)
@@ -201,17 +201,26 @@ public sealed class BlueSky
         return await GetSkyline();
     }
 
-    public async Task<SkylineObject[]> GetSocialNetworkContext()
+    public async Task<GetSuggestionsRequest> GetSuggestions(int cursor)
     {
-        var feeds = (await GetSkyline()).AsEnumerable();
-        await Parallel.ForAsync(0, 10, async (i, _) =>
-        {
-            feeds = feeds.Concat((await SearchTechPosts(SEARCH_TERM, i + 1))
-                .Select(p => new SkylineObject(p, null)));
-        });
-        return feeds.DistinctBy(f => f.post.cid).ToArray();
+        var response = await _httpClient.GetAsync($"app.bsky.actor.getSuggestions?limit=100&cursor={cursor}");
+        if (response.IsSuccessStatusCode)
+            return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
+                BlueSkyBotJsonSerializerContext.Default.GetSuggestionsRequest);
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            throw new HttpRequestException(
+                $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        await Login();
+        return await GetSuggestions(cursor);
     }
 
+    public async Task<SkylineObject[]> GetSocialNetworkContext()
+    {
+        return (await GetSkyline()).AsEnumerable()
+            .Concat((await SearchTechPosts(SEARCH_TERM, 1))
+                .Select(p => new SkylineObject(p, null)))
+            .DistinctBy(f => f.post.cid).ToArray();
+    }
     private async Task<(byte[], string)> GetImageContent(string href)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, href);

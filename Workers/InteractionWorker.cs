@@ -3,6 +3,7 @@ using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests.Gemini;
+using bsky.bot.Clients.Responses;
 using bsky.bot.Storage;
 using bsky.bot.Utils;
 
@@ -15,6 +16,11 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
     }).CreateLogger<InteractionWorker>();
 
+    private readonly string[] parties =
+    [
+        "DC", "MDB", "Partido", "PCB", "PCdoB", "PCO", "PDT", "PL", "PMB", "PMN", "PP", "Pros", "PRTB", "PSB", "PSC",
+        "PSDB", "PSD", "PSOL", "PSTU", "PTB", "PT", "PV", "Rede Sustentabilidade", "União Brasil", "UP", "Republicanos"
+    ];
     public async Task ExecuteAsync()
     {
         _logger.LogInformation("Starting interaction worker");
@@ -28,7 +34,7 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         await Task
             .WhenAll(list.notifications
                 .Where(n => n.reason == NotificationReasons.FOLLOW)
-                .Select(FollowBack));
+                .Select(f => Follow(f.author.did, f.author.handle)));
         if (list.notifications.All(n => n.reason != NotificationReasons.REPLY)) return;
         var replyGenerationRequest = RequestExtensions
             .ConvertSkylineToTechPostRequest<PostReplyRequest>(
@@ -36,17 +42,34 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         await Task
             .WhenAll(list.notifications.Where(r => r.reason == NotificationReasons.REPLY)
             .Select(r => ReplyReplies(r, replyGenerationRequest)));
+        await FollowSuggestedUsers();
         _logger.LogInformation("Interaction worker stopped");
     }
-
     
-    private async Task FollowBack(Notification notification)
+    private async Task FollowSuggestedUsers()
     {
-        if (dataRepository.PostAlreadyProcessed(notification.cid)) return;
-        _logger.LogInformation("Following back user: {Handle}", notification.author.handle);
-        await blueSky.FollowBack(notification);
-        dataRepository.AddProcessedPost(notification.cid);
-        _logger.LogInformation("user {DisplayName} followed back!", notification.author.displayName);
+        _logger.LogInformation("Starting following suggested users");
+        _logger.LogInformation("Searching for suggested users");
+        var suggestions = (await blueSky.GetSuggestions(1)).actors.ToList();
+        await Parallel.ForAsync(2, 8, async (i,_) =>
+        {
+            suggestions.AddRange((await blueSky.GetSuggestions(i)).actors);
+        });
+        _logger.LogInformation("Users found, following suggested users");
+        await Task.WhenAll(suggestions
+            .Where(s => !parties.All(c => s.description.Contains(c)))
+            .Select(s => Follow(s.did, s.handle)));
+
+    }
+    
+    private async Task Follow(string did, string handle)
+    {
+        var processId = $"f:{did}";
+        if (dataRepository.PostAlreadyProcessed(processId)) return;
+        _logger.LogInformation("Following user: {Handle}", handle);
+        await blueSky.FollowBack(did);
+        dataRepository.AddProcessedPost(processId);
+        _logger.LogInformation("user {Handle} followed!", handle);
     }
 
     private async Task ReplyReplies(Notification notification, PostReplyRequest request)
@@ -111,5 +134,4 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         if (reply.post.author.did != blueSky.Repo && reply.replies.Length != 0) return false;
         return reply.replies.Any(VerifyAnswered);
     }
-    
 }

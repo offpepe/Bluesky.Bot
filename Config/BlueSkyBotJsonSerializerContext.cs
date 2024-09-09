@@ -75,6 +75,8 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(GetUploadPathResponse))]
 [JsonSerializable(typeof(GeminiFile))]
 [JsonSerializable(typeof(GeminiUploadFileResponse))]
+[JsonSerializable(typeof(GetSuggestionsRequest))]
+[JsonSerializable(typeof(Actor))]
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {
     
