@@ -1,8 +1,5 @@
-using System.Net.Http.Headers;
-using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
-using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
 
 namespace bsky.bot.Utils;
@@ -20,11 +17,11 @@ public static class RequestExtensions
     public static string ConvertPostIntoConversationContext(this IEnumerable<Post> posts)
         => posts.Aggregate(string.Empty, (l, r) => l + $"@{r.author.handle}: {r.record.text.ReplaceLineEndings(string.Empty)}\n");
     
-    public static T ConvertSkylineToTechPostRequest<T>(SkylineObject[] feeds) where T : LLMRequest, new()
+    public static T ConvertSkylineToTechPostRequest<T>(Post[] posts) where T : LLMRequest, new()
     {
         return new T
         {
-            contents = feeds.Select(feed => new GeminiInstruction("user", [new GeminiRequestPart(TrackFullConversation(feed.post, feed.reply))])).ToArray()
+            contents = posts.Select(feed => new GeminiInstruction("user", [new GeminiRequestPart(TrackFullConversation(feed, null))])).ToArray()
         };
         string TrackFullConversation(Post post, PostReply? reply)
         {

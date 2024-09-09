@@ -38,7 +38,7 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         if (list.notifications.All(n => n.reason != NotificationReasons.REPLY)) return;
         var replyGenerationRequest = RequestExtensions
             .ConvertSkylineToTechPostRequest<PostReplyRequest>(
-                await blueSky.GetSocialNetworkContext());
+                await blueSky.GetSocialNetworkContext(50));
         await Task
             .WhenAll(list.notifications.Where(r => r.reason == NotificationReasons.REPLY)
             .Select(r => ReplyReplies(r, replyGenerationRequest)));
