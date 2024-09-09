@@ -16,7 +16,7 @@ namespace bsky.bot.Clients;
 public class Gemini : ILllmModel
 {
     private const int GEN_LIMIT = 15;
-    private const string GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=@APIKEY";
+    private const string GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=@APIKEY";
     private const string GEMINI_UPLOAD_FILE_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files?key=@APIKEY";
     private static readonly string gemini_api_key = Environment.GetEnvironmentVariable("gemini_api_key") ??
                                                     throw new ApplicationException(
