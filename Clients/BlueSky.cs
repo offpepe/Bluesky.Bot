@@ -22,6 +22,7 @@ public sealed class BlueSky
 
     private const string BOBBLE_TAG = "#bolhadev";
     private const string ARTICLE_TAG = "#ArtigosDev";
+    private const string SEARCH_TERM = "\"samsantosb.bsky.social\" || \"bolhadev\" || \"bolhatech\" || \"studytechbr\"";
     
     public BlueSky(string url, string email, string password, string embedSourceUrl)
     {
@@ -200,6 +201,17 @@ public sealed class BlueSky
         return await GetSkyline();
     }
 
+    public async Task<SkylineObject[]> GetSocialNetworkContext()
+    {
+        var feeds = (await GetSkyline()).AsEnumerable();
+        await Parallel.ForAsync(0, 10, async (i, _) =>
+        {
+            feeds = feeds.Concat((await SearchTechPosts(SEARCH_TERM, i + 1))
+                .Select(p => new SkylineObject(p, null)));
+        });
+        return feeds.DistinctBy(f => f.post.cid).ToArray();
+    }
+
     private async Task<(byte[], string)> GetImageContent(string href)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, href);
@@ -223,7 +235,7 @@ public sealed class BlueSky
         );
         var resultStr = await response.Content.ReadAsStringAsync();
         return (result.blob.Reference!.link, result.blob.MimeType, result.blob.Size);
-    }   
+    }
 
     private async Task<EmbedData> GetEmbedData(string href)
     {

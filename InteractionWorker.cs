@@ -1,10 +1,10 @@
-using System.Runtime.CompilerServices;
 using bsky.bot.Clients;
 using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Storage;
+using bsky.bot.Utils;
 
 namespace bsky.bot;
 
@@ -19,22 +19,26 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
     {
         _logger.LogInformation("Starting interaction worker");
         var list = await blueSky.ListNotifications();
-        var replies = list.notifications.Where(n => n.reason == NotificationReasons.REPLY);
+        var replies = list.notifications.Where(n => n.reason == NotificationReasons.REPLY).ToArray();
         var newFollowers = list.notifications.Where(n => n.reason == NotificationReasons.FOLLOW).Select(FollowBack).ToArray();
-        if (!replies.Any() && newFollowers.Length == 0)
+        if (replies.Length == 0 && newFollowers.Length == 0)
         {
             _logger.LogInformation("none new notifications to interact, interaction worker stopped");
             return;
         }
-        foreach (var reply in list.notifications.Where(n => n.reason == NotificationReasons.REPLY))
-        {
-            await ReplyReplies(reply);
-        }
+        if (replies.Length != 0) await ReplyReplies(replies);
         await Task.WhenAll(newFollowers);
         _logger.LogInformation("Interaction worker stopped");
     }
 
-
+    private async Task ReplyReplies(IEnumerable<Notification> replies)
+    {
+        var replyGenerationRequest = RequestExtensions
+            .ConvertSkylineToTechPostRequest<PostReplyRequest>(
+                await blueSky.GetSocialNetworkContext());
+        await Task.WhenAll(replies.Select(r => ReplyReplies(r, replyGenerationRequest)));
+    }
+    
     private async Task FollowBack(Notification notification)
     {
         if (dataRepository.PostAlreadyProcessed(notification.cid)) return;
@@ -44,7 +48,7 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         _logger.LogInformation("user {DisplayName} followed back!", notification.author.displayName);
     }
 
-    private async Task ReplyReplies(Notification notification)
+    private async Task ReplyReplies(Notification notification, PostReplyRequest request)
     {
         if (dataRepository.IsUninteractableRepo(notification.author.did))
         {
@@ -60,16 +64,18 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
             return;
         }
         if (notification.record.Value.text.Contains("\ud83d\udccc")) return;
-        _logger.LogInformation("tracking conversation of conversation {RootUri}", notification.record.Value.reply!.Value.root.uri);
-        var conversationContext = await TrackConversationContextToGemini(notification.uri);
-        if (conversationContext.Length == 0)
+        _logger.LogInformation("tracking conversation of thread {RootUri}", notification.record.Value.reply!.Value.root.uri);
+
+        var context = await TrackConversationContextToGemini(notification.uri);
+        if (context.Length == 0)
         {
             _logger.LogInformation("conversation already answered or unable to reply, skipping...");
             return;
         }
+        request.contents = request.contents.Concat(context).ToArray();
         _logger.LogInformation("conversation tracked");
         _logger.LogInformation("generating response...");
-        var generatedContent = await model.Generate(new PostReplyRequest(conversationContext));
+        var generatedContent = await model.Generate(request);
         _logger.LogInformation("response generated");
         var reply = notification.record.Value.reply.Value with
         {
@@ -104,10 +110,5 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         if (reply.post.author.did != blueSky.Repo && reply.replies.Length != 0) return false;
         return reply.replies.Any(VerifyAnswered);
     }
-
-    private static string AddTag(string value)
-    {
-        value = value.Length > 284 ? value[..284] : value;
-        return $"[IA] {value}";
-    }
+    
 }

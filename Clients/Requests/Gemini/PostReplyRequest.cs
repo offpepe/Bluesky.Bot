@@ -5,6 +5,20 @@ namespace bsky.bot.Clients.Requests.Gemini;
 
 public sealed class PostReplyRequest : LLMRequest
 {
+    public PostReplyRequest()
+    {
+        systemInstruction = new GeminiInstruction(
+            "user",
+            [new GeminiRequestPart(GeminiSystemInstructions.ReplyPost)]
+        );
+        generationConfig = new GenerationConfig(
+            1.3,
+            64,
+            0.95,
+            8192,
+            "text/plain"
+        );
+    }
     public PostReplyRequest(GeminiInstruction[] context)
     {
         contents = context;

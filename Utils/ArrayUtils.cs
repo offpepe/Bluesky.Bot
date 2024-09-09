@@ -8,4 +8,14 @@ public static class ArrayUtils
         Array.Resize(ref array, lastPos + 1);
         array[lastPos] = item;
     }
+    public static void PushRange<T>(ref T[] array, T[] src)
+    {
+        var lastSize = array.Length;
+        Array.Resize(ref array, lastSize + src.Length);
+        var srcIdx = 0;
+        for (var i = lastSize; i < array.Length; i++)
+        {
+            array[i] = src[srcIdx++];
+        }
+    }
 }

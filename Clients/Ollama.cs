@@ -40,11 +40,6 @@ public class Ollama : ILllmModel
         return generatedResponse;
     }
 
-    public Task<bool> IsTechContent(string content)
-    {
-        throw new NotImplementedException();
-    }
-
     private async Task<GenerateReplyResponse> RequestOllama(string replyText)
     {
         var request = JsonSerializer.Serialize(
