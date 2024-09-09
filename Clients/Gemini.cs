@@ -16,14 +16,11 @@ namespace bsky.bot.Clients;
 public class Gemini : ILllmModel
 {
     private const int GEN_LIMIT = 15;
+    private const string GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=@APIKEY";
+    private const string GEMINI_UPLOAD_FILE_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files?key=@APIKEY";
     private static readonly string gemini_api_key = Environment.GetEnvironmentVariable("gemini_api_key") ??
                                                     throw new ApplicationException(
                                                         "variable $gemini_api_key not found");
-    private static readonly string gemini_url =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=@APIKEY";
-
-    private static readonly string uploadFileUrl =
-        $"https://generativelanguage.googleapis.com/upload/v1beta/files?key={gemini_api_key}";
     private readonly HttpClient _httpClient;
     
     private readonly ILogger<Program> _logger = LoggerFactory.Create(b =>
@@ -36,7 +33,7 @@ public class Gemini : ILllmModel
     public Gemini()
     {
         _httpClient = new HttpClient(new BskyHttpHandler<Gemini>());
-        _httpClient.BaseAddress = new Uri(gemini_url
+        _httpClient.BaseAddress = new Uri(GEMINI_URL
             .Replace("@APIKEY", gemini_api_key));
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
@@ -122,7 +119,7 @@ public class Gemini : ILllmModel
 
     private async Task<string> GetUploadUrl(string filename, string mimeType, int size)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, uploadFileUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Post, GEMINI_UPLOAD_FILE_URL.Replace("@APIKEY", gemini_api_key));
         request.Content =
             new StringContent(
                 JsonSerializer.Serialize(new UploadFileGeminiRequest(new RequestFile(filename)),
