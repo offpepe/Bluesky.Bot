@@ -175,9 +175,9 @@ public sealed class BlueSky
         await LikePost(uri, cid);
     }
 
-    public async Task<Post[]> SearchTechPosts(string searchValue, int cursor)
+    public async Task<Post[]> SearchTechPosts(string searchValue, int cursor, int limit)
     {
-        var response = await _httpClient.GetAsync($"app.bsky.feed.searchPosts?q={searchValue}&cursor={cursor}&&limit=100");
+        var response = await _httpClient.GetAsync($"app.bsky.feed.searchPosts?q={searchValue}&cursor={cursor}&limit={limit}");
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
                 BlueSkyBotJsonSerializerContext.Default.SearchPostsResponse).posts;
@@ -185,20 +185,20 @@ public sealed class BlueSky
             throw new HttpRequestException(
                 $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         await Login();
-        return await SearchTechPosts(searchValue, cursor);
+        return await SearchTechPosts(searchValue, cursor, limit);
     }
 
-    public async Task<SkylineObject[]> GetSkyline()
+    public async Task<Post[]> GetSkyline(int limit)
     {
-        var response = await _httpClient.GetAsync("app.bsky.feed.getTimeline?limit=100");
+        var response = await _httpClient.GetAsync($"app.bsky.feed.getTimeline?limit={limit}");
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
-                BlueSkyBotJsonSerializerContext.Default.GetSkylineResponse).feed;
+                BlueSkyBotJsonSerializerContext.Default.GetSkylineResponse).feed.Select(f => f.post).ToArray();
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             throw new HttpRequestException(
                 $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         await Login();
-        return await GetSkyline();
+        return await GetSkyline(limit);
     }
 
     public async Task<GetSuggestionsRequest> GetSuggestions(int cursor)
@@ -214,13 +214,11 @@ public sealed class BlueSky
         return await GetSuggestions(cursor);
     }
 
-    public async Task<SkylineObject[]> GetSocialNetworkContext()
+    public async Task<Post[]> GetSocialNetworkContext(int limit)
     {
-        return (await GetSkyline()).AsEnumerable()
-            .Concat((await SearchTechPosts(SEARCH_TERM, 1))
-                .Select(p => new SkylineObject(p, null)))
-            .DistinctBy(f => f.post.cid)
-            .Take(150)
+        return (await GetSkyline(limit / 2)).AsEnumerable()
+            .Concat(await SearchTechPosts(SEARCH_TERM, 1, limit / 2))
+            .DistinctBy(f => f.cid)
             .ToArray();
     }
     private async Task<(byte[], string)> GetImageContent(string href)
