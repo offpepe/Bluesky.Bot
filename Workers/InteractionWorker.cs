@@ -6,7 +6,7 @@ using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Storage;
 using bsky.bot.Utils;
 
-namespace bsky.bot;
+namespace bsky.bot.Workers;
 
 public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, ILllmModel model, bool isBotAccount = false)
 {
@@ -19,25 +19,26 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
     {
         _logger.LogInformation("Starting interaction worker");
         var list = await blueSky.ListNotifications();
-        var replies = list.notifications.Where(n => n.reason == NotificationReasons.REPLY).ToArray();
-        var newFollowers = list.notifications.Where(n => n.reason == NotificationReasons.FOLLOW).Select(FollowBack).ToArray();
-        if (replies.Length == 0 && newFollowers.Length == 0)
+        if (!list.notifications.Any(n => n.reason is NotificationReasons.FOLLOW or NotificationReasons.REPLY))
         {
             _logger.LogInformation("none new notifications to interact, interaction worker stopped");
             return;
         }
-        if (replies.Length != 0) await ReplyReplies(replies);
-        await Task.WhenAll(newFollowers);
-        _logger.LogInformation("Interaction worker stopped");
-    }
 
-    private async Task ReplyReplies(IEnumerable<Notification> replies)
-    {
+        await Task
+            .WhenAll(list.notifications
+                .Where(n => n.reason == NotificationReasons.FOLLOW)
+                .Select(FollowBack));
+        if (list.notifications.All(n => n.reason != NotificationReasons.REPLY)) return;
         var replyGenerationRequest = RequestExtensions
             .ConvertSkylineToTechPostRequest<PostReplyRequest>(
                 await blueSky.GetSocialNetworkContext());
-        await Task.WhenAll(replies.Select(r => ReplyReplies(r, replyGenerationRequest)));
+        await Task
+            .WhenAll(list.notifications.Where(r => r.reason == NotificationReasons.REPLY)
+            .Select(r => ReplyReplies(r, replyGenerationRequest)));
+        _logger.LogInformation("Interaction worker stopped");
     }
+
     
     private async Task FollowBack(Notification notification)
     {

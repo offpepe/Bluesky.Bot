@@ -1,12 +1,11 @@
 using bsky.bot.Clients;
-using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Utils;
 
-namespace bsky.bot;
+namespace bsky.bot.Workers;
 
 public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
 {

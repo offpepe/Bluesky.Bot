@@ -7,6 +7,7 @@ using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Config;
 using bsky.bot.Utils;
+using bsky.bot.Workers;
 
 namespace bsky.bot.Clients;
 

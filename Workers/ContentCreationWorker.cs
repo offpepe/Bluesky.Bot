@@ -1,13 +1,9 @@
-using System.Runtime.Intrinsics.X86;
 using bsky.bot.Clients;
-using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
-using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Storage;
-using bsky.bot.Storage.Models;
 
-namespace bsky.bot;
+namespace bsky.bot.Workers;
 
 public class ContentCreationWorker(
     BlueSky blueSky,

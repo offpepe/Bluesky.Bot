@@ -3,6 +3,7 @@ using bsky.bot.Clients;
 using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
 using bsky.bot.Storage;
+using bsky.bot.Workers;
 
 namespace bsky.bot;
 
