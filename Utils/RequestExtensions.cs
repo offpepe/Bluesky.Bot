@@ -22,22 +22,9 @@ public static class RequestExtensions
     
     public static T ConvertSkylineToTechPostRequest<T>(SkylineObject[] feeds) where T : LLMRequest, new()
     {
-        var contents = new List<GeminiRequestPart>();
-        foreach (var feed in feeds)
-        {
-            if (feed.post.embed is { type: EmbedTypes.ImageView })
-            {   
-                if (feed.post.record.reply.HasValue) continue;
-                contents.Add(new GeminiRequestPart(
-                    feed.post.embed.Value.images[0].fullsize!,
-                    feed.post.record.embed!.images[0].image.MimeType
-                ));
-            }
-            contents.Add(new GeminiRequestPart(TrackFullConversation(feed.post, feed.reply)));
-        }
         return new T
         {
-            contents = [new GeminiInstruction("user", contents.ToArray())]
+            contents = feeds.Select(feed => new GeminiInstruction("user", [new GeminiRequestPart(TrackFullConversation(feed.post, feed.reply))])).ToArray()
         };
         string TrackFullConversation(Post post, PostReply? reply)
         {

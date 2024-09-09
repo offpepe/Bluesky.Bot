@@ -44,7 +44,6 @@ public class Gemini : ILllmModel
     public async Task<string> Generate(LLMRequest message)
     {
         EnsureGenerationLimit();
-        message.contents = await UpdateContentUri(message.contents);
         var requestBody = JsonSerializer.Serialize(message,
             BlueSkyBotJsonSerializerContext.Default.LLMRequest);
         var response = await _httpClient.PostAsync(string.Empty, new StringContent(requestBody, Encoding.UTF8, "application/json"));
