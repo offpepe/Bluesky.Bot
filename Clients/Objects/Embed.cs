@@ -4,8 +4,8 @@ namespace bsky.bot.Clients.Models;
 
 public sealed class RecordEmbed
 {
-    [JsonPropertyName("$type")] public string type { get; init; }
-    public EmbedImage[] images { get; init; }
+    [JsonPropertyName("$type")] public string type { get; init; } = null!;
+    public EmbedImage[] images { get; init; } = null!;
     public Subject? record { get; init; }
     public RecordEmbed? media { get; init; }
     public External? external { get; init; }
@@ -35,9 +35,9 @@ public readonly struct PostEmbed
 }
 public sealed class PostEmbedRecord
 {
-    [JsonPropertyName("$type")] public string type { get; init; }
-    public string uri { get; init; }
-    public string cid { get; init; }
+    [JsonPropertyName("$type")] public string type { get; init; } = null!;
+    public string? uri { get; init; }
+    public string? cid { get; init; }
     public Author? author { get; init; }
     public Record? value { get; init; }
     public PostEmbedRecord? record { get; init; }

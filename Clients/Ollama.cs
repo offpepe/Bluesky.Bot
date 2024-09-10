@@ -32,7 +32,7 @@ public class Ollama : ILllmModel
 
     public async Task<string> Generate(LLMRequest request)
     {
-        var ollamaResponse = await RequestOllama(request.ConvertRequestToString());
+        var ollamaResponse = await RequestOllama(request.ConvertRequestToString()!);
         var generatedResponse = ollamaResponse.response;
         if (ollamaResponse.response.Length > Constants.GENERATED_CONTENT_SIZE_LIMIT)
         {

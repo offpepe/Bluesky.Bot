@@ -45,14 +45,15 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         return;
         async Task IgnoreErrors(Task task)
         {
+            var taskUuid = Guid.NewGuid().ToString("N");
             try
             {
                 await task.WaitAsync(new CancellationToken());
-                _logger.LogInformation("[TASK:{TaskId}] end successfully", Environment.CurrentManagedThreadId);
+                _logger.LogInformation("[TASK:{TaskUuid}] end successfully", taskUuid);
             }
             catch (Exception ex)
             {
-                _logger.LogError("[TASK:{TaskId}]Interaction task failed | message: {Message} \n stackTrace: {StackTrace}", Environment.CurrentManagedThreadId, ex.Message, ex.StackTrace);
+                _logger.LogError("[TASK:{TaskId}]Interaction task failed | message: {Message} \n stackTrace: {StackTrace}", taskUuid, ex.Message, ex.StackTrace);
             }
         }
     }
