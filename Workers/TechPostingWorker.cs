@@ -1,6 +1,7 @@
 using bsky.bot.Clients;
 using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Utils;
@@ -21,28 +22,25 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
     
     public async Task ExecuteAsync()
     {
-        await CreateTechPostJob();
+        await ReplyFeedPost();
     }
 
-    private async Task CreateTechPostJob()
+    private async Task ReplyFeedPost()
     {
         _logger.LogInformation("start creating Tech posting job");
         _logger.LogInformation("searching social interaction to base response");
-        var feeds = await blueSky.GetSocialNetworkContext(200);
+        var feeds = await blueSky.GetSocialNetworkContext(100);
         _logger.LogInformation("finished searching tech posts");
         _logger.LogInformation("generating posting job");
-        var generatedPost =
-            await model.Generate(RequestExtensions
-                .ConvertSkylineToTechPostRequest<TechPostRequest>(feeds.ToArray()));
-        var isTech = await IsTechContent(generatedPost);
+        var generatedPost = await model.Generate(new TechPostRequest(feeds.ConvertPostIntoConversationContext()));   
         _logger.LogInformation("posting content");
-        await blueSky.CreateNewSocialPost(generatedPost, isTech);
+        await blueSky.CreateNewSocialPost(generatedPost);
         _logger.LogInformation("tech posting created");
     }
 
     private static string TrackFullConversation(Post post, PostReply? reply)
     {
-        if (!reply.HasValue) return $"[{post.author.handle}] {post.record.text}\n";
+        if (!reply.HasValue) return $"[{post.uri}] {post.record.text}\n";
         var conversation = new List<Post>()
         {
             post

@@ -2,6 +2,7 @@ using bsky.bot.Clients;
 using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
 using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Storage;
@@ -9,41 +10,51 @@ using bsky.bot.Utils;
 
 namespace bsky.bot.Workers;
 
-public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, ILllmModel model, bool isBotAccount = false)
+public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, ILllmModel model)
 {
     private readonly ILogger<InteractionWorker> _logger = LoggerFactory.Create(b =>
     {
         b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
     }).CreateLogger<InteractionWorker>();
 
-    private readonly string[] parties =
+    private readonly string[] _prohibitedTokens =
     [
         "DC", "MDB", "Partido", "PCB", "PCdoB", "PCO", "PDT", "PL", "PMB", "PMN", "PP", "Pros", "PRTB", "PSB", "PSC",
-        "PSDB", "PSD", "PSOL", "PSTU", "PTB", "PT", "PV", "Rede Sustentabilidade", "União Brasil", "UP", "Republicanos"
+        "PSDB", "PSD", "PSOL", "PSTU", "PTB", "PT", "PV", "Rede Sustentabilidade", "União Brasil", "UP", "Republicanos",
+        "\ud83c\udf46", "\ud83d\udd1e", "\ud83c\udf51", "Conteúdo adulto", "ONNOW"
     ];
     public async Task ExecuteAsync()
     {
         _logger.LogInformation("Starting interaction worker");
         var list = await blueSky.ListNotifications();
-        if (!list.notifications.Any(n => n.reason is NotificationReasons.FOLLOW or NotificationReasons.REPLY))
+        var skyline = await blueSky.GetSocialNetworkContext(100);
+        var tasks = new List<Task>()
         {
-            _logger.LogInformation("none new notifications to interact, interaction worker stopped");
-            return;
-        }
-
-        await Task
-            .WhenAll(list.notifications
+            CreatePost(skyline)
+        };
+        if (list.notifications.Any(n => n.reason == NotificationReasons.FOLLOW))
+            tasks.AddRange(list.notifications
                 .Where(n => n.reason == NotificationReasons.FOLLOW)
                 .Select(f => Follow(f.author.did, f.author.handle)));
-        if (list.notifications.All(n => n.reason != NotificationReasons.REPLY)) return;
-        var replyGenerationRequest = RequestExtensions
-            .ConvertSkylineToTechPostRequest<PostReplyRequest>(
-                await blueSky.GetSocialNetworkContext(50));
-        await Task
-            .WhenAll(list.notifications.Where(r => r.reason == NotificationReasons.REPLY)
-            .Select(r => ReplyReplies(r, replyGenerationRequest)));
-        await FollowSuggestedUsers();
+        if (list.notifications.Any(n => n.reason == NotificationReasons.REPLY))
+            tasks.AddRange(list.notifications.Where(r => r.reason == NotificationReasons.REPLY)
+                .Select(r =>
+                    ReplyReplies(r, RequestExtensions.ConvertSkylineToTechPostRequest<PostReplyRequest>(skyline))));
+        await Task.WhenAll(tasks.Select(IgnoreErrors));
         _logger.LogInformation("Interaction worker stopped");
+        return;
+        async Task IgnoreErrors(Task task)
+        {
+            try
+            {
+                await task.WaitAsync(new CancellationToken());
+                _logger.LogInformation("[TASK:{TaskId}] end successfully", Environment.CurrentManagedThreadId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("[TASK:{TaskId}]Interaction task failed | message: {Message} \n stackTrace: {StackTrace}", Environment.CurrentManagedThreadId, ex.Message, ex.StackTrace);
+            }
+        }
     }
     
     private async Task FollowSuggestedUsers()
@@ -57,7 +68,7 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         });
         _logger.LogInformation("Users found, following suggested users");
         await Task.WhenAll(suggestions
-            .Where(s => !parties.All(c => s.description.Contains(c)))
+            .Where(s => !_prohibitedTokens.All(c => s.description.Contains(c, StringComparison.CurrentCultureIgnoreCase)))
             .Select(s => Follow(s.did, s.handle)));
 
     }
@@ -128,7 +139,17 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
 
         return geminiContents.ToArray();
     }
-
+    
+    private async Task CreatePost(Post[] skyline)
+    {
+        _logger.LogInformation("start creating Tech posting job \n searching social interaction to base response");
+        _logger.LogInformation("finished searching tech posts \n generating posting job");
+        var generatedPost = await model.Generate(new TechPostRequest(skyline.ConvertPostIntoConversationContext()));   
+        _logger.LogInformation("posting content");
+        await blueSky.CreateNewSocialPost(generatedPost);
+        _logger.LogInformation("tech posting created");
+    }
+    
     private bool VerifyAnswered(ThreadPostReply reply)
     {
         if (reply.post.author.did != blueSky.Repo && reply.replies.Length != 0) return false;
