@@ -143,10 +143,9 @@ public sealed class BlueSky
         await CreateNewContentPost(content, href);
     }
     
-    public async Task CreateNewSocialPost(string content, bool isTech)
+    public async Task CreateNewSocialPost(string content)
     {
-        var facets = Array.Empty<Facet>();
-        if (isTech) facets = AddBobbleTag(ref content);
+        var facets = FindTags(content);
         var requestBody = new PostRequest(Repo, content, facets);
         var request = JsonSerializer.Serialize(
             requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
@@ -158,7 +157,7 @@ public sealed class BlueSky
             throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         }
         await Login();
-        await CreateNewSocialPost(content, isTech);
+        await CreateNewSocialPost(content);
     }
 
     public async Task LikePost(string uri, string cid)
@@ -216,11 +215,24 @@ public sealed class BlueSky
 
     public async Task<Post[]> GetSocialNetworkContext(int limit)
     {
-        return (await GetSkyline(limit / 2)).AsEnumerable()
-            .Concat(await SearchTechPosts(SEARCH_TERM, 1, limit / 2))
-            .DistinctBy(f => f.cid)
-            .ToArray();
+        if (limit <= 100)
+            return (await SearchTechPosts(SEARCH_TERM, 1, limit))
+                .DistinctBy(f => f.cid).ToArray();
+        var numInterations = (int) Math.Floor(limit / 100m) + 1;
+        var sizeOfLastInteraction = limit % 100;
+        var posts = Enumerable.Empty<Post>();
+        await Parallel.ForAsync(1, numInterations, async (i, _) =>
+        {
+            posts = posts.Concat(await SearchTechPosts(SEARCH_TERM, i, 100));
+        });
+        if (sizeOfLastInteraction == 0)
+            return posts
+                .DistinctBy(f => f.cid).ToArray();
+        return posts
+            .Concat(await SearchTechPosts(SEARCH_TERM, numInterations, sizeOfLastInteraction))
+            .DistinctBy(f => f.cid).ToArray();
     }
+    
     private async Task<(byte[], string)> GetImageContent(string href)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, href);
@@ -325,5 +337,33 @@ public sealed class BlueSky
                     }
                 ]
             }];
+    }
+
+    private static Facet[] FindTags(string content)
+    {
+        var facets = new List<Facet>();
+        var facetIndex = content.IndexOf('#', StringComparison.Ordinal);
+        var startIndex = facetIndex + 1;
+        while (facetIndex != -1)
+        {
+            var endIndex = content.MinIndexOfAny(facetIndex + 1, '#', ' ');
+            var facetContent = content.Substring(startIndex, endIndex - facetIndex - 1);
+            facets.Add(new Facet
+            {
+                index = new FacetIndex(content.Utf16IndexToUtf8Index(facetIndex),
+                    content.Utf16IndexToUtf8Index(endIndex)),
+                features =
+                [
+                    new Feature
+                    {
+                        type = FeatureTypes.TAG,
+                        tag = facetContent
+                    }
+                ]
+            });
+            facetIndex = content.IndexOf('#', startIndex);
+            startIndex = facetIndex + 1;
+        }
+        return facets.ToArray();
     }
 }
