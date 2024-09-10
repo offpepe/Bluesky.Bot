@@ -62,8 +62,7 @@ public class Gemini : ILllmModel
             ArrayUtils.Push(ref instructions, new GeminiInstruction("model", [new GeminiRequestPart(generatedContent)]));            
             generatedContent = await AdjustContentSize(instructions);
         }
-        _totalGenerations++;
-        return generatedContent!;
+        return generatedContent!;   
     }
 
     private async Task<GeminiInstruction[]> UpdateContentUri(GeminiInstruction[] instructions)
@@ -140,5 +139,9 @@ public class Gemini : ILllmModel
     private void EnsureGenerationLimit()
     {
         if (_totalGenerations >= GEN_LIMIT) throw new ApplicationException("Gemini generation limit exceeded");
+        lock (this)
+        {
+            _totalGenerations++;
+        }
     }
 }
