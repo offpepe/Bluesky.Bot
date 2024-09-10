@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
@@ -6,6 +7,8 @@ namespace bsky.bot.Utils;
 
 public static class RequestExtensions
 {
+    private static readonly Func<Post, string> PostFormatter = (post) => $"@{post.author.handle}: {post.record.text}\n";
+    
     public static string? ConvertRequestToString(this LLMRequest request) => request.contents.Length switch
     {
         0 => string.Empty,
@@ -25,7 +28,7 @@ public static class RequestExtensions
         };
         string TrackFullConversation(Post post, PostReply? reply)
         {
-            if (!reply.HasValue) return $"[{post.author.handle}] {post.record.text}\n";
+            if (!reply.HasValue) return PostFormatter.Invoke(post);
             var conversation = new List<Post>()
             {
                 post
@@ -40,7 +43,7 @@ public static class RequestExtensions
         
             return conversation
                 .OrderBy(c => c.record.createdAt)
-                .Select(p => $"[{p.author.handle}] {p.record.text}\n")
+                .Select(PostFormatter)
                 .Aggregate((l, r) => l + r);
         }
     }
