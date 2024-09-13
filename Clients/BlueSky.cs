@@ -22,7 +22,7 @@ public sealed class BlueSky
 
     private const string BOBBLE_TAG = "#bolhadev";
     private const string ARTICLE_TAG = "#ArtigosDev";
-    private const string SEARCH_TERM = "\"samsantosb.bsky.social\" || \"bolhadev\" || \"bolhatech\" || \"studytechbr\"";
+    private const string SEARCH_TERM = "\"samsantosb.bsky.social\" || \"bolhadev\" || \"bolhatech\" || \"BolhaTech\" || \"studytechbr\" || \"sseraphini.bsky.social\"";
     
     public BlueSky(string url, string email, string password, string embedSourceUrl)
     {
@@ -175,7 +175,7 @@ public sealed class BlueSky
         await LikePost(uri, cid);
     }
 
-    public async Task<Post[]> SearchTechPosts(string searchValue, int cursor, int limit)
+    private async Task<Post[]> SearchTechPosts(string searchValue, int cursor, int limit)
     {
         var response = await _httpClient.GetAsync($"app.bsky.feed.searchPosts?q={searchValue}&cursor={cursor}&limit={limit}");
         if (response.IsSuccessStatusCode)
@@ -214,7 +214,7 @@ public sealed class BlueSky
         return await GetSuggestions(cursor);
     }
 
-    public async Task<Post[]> GetSocialNetworkContext(int limit)
+    public async Task<Post[]> GetTechSocialNetworkContext(int limit)
     {
         if (limit <= 100)
             return (await SearchTechPosts(SEARCH_TERM, 1, limit))
@@ -232,6 +232,29 @@ public sealed class BlueSky
         return posts
             .Concat(await SearchTechPosts(SEARCH_TERM, numInterations, sizeOfLastInteraction))
             .DistinctBy(f => f.cid).ToArray();
+    }
+    
+    public async Task<Post[]> GetFullSocialNetworkContext(int limit)
+    {
+        if (limit <= 100) return (await SearchTechPosts(SEARCH_TERM, 1, limit / 2))
+            .Concat(await GetSkyline(limit / 2))
+            .DistinctBy(f => f.uri)
+            .ToArray();
+        var numInterations = (int) Math.Floor(limit / 100m) + 1;
+        var sizeOfLastInteraction = limit % 100;
+        var posts = Enumerable.Empty<Post>();
+        await Parallel.ForAsync(1, numInterations, async (i, _) =>
+        {
+            posts = posts.Concat(await SearchTechPosts(SEARCH_TERM, i, 50))
+                .Concat(await GetSkyline(50));
+        });
+        if (sizeOfLastInteraction == 0)
+            return posts
+                .DistinctBy(f => f.uri).ToArray();
+        return posts
+            .Concat(await SearchTechPosts(SEARCH_TERM, numInterations, sizeOfLastInteraction / 2))
+            .Concat(await GetSkyline(sizeOfLastInteraction / 2))
+            .DistinctBy(f => f.uri).ToArray();
     }
     
     private async Task<(byte[], string)> GetImageContent(string href)

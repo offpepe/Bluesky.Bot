@@ -9,6 +9,7 @@ public sealed class RecordEmbed
     public Subject? record { get; init; }
     public RecordEmbed? media { get; init; }
     public External? external { get; init; }
+    public string? text { get; init; }
 }
 public readonly record struct AspectRatio(int heigth, int width);
 public readonly record struct External()
