@@ -60,22 +60,6 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         }
     }
     
-    private async Task FollowSuggestedUsers()
-    {
-        _logger.LogInformation("Starting following suggested users");
-        _logger.LogInformation("Searching for suggested users");
-        var suggestions = (await blueSky.GetSuggestions(1)).actors.ToList();
-        await Parallel.ForAsync(2, 8, async (i,_) =>
-        {
-            suggestions.AddRange((await blueSky.GetSuggestions(i)).actors);
-        });
-        _logger.LogInformation("Users found, following suggested users");
-        await Task.WhenAll(suggestions
-            .Where(s => !_prohibitedTokens.All(c => s.description.Contains(c, StringComparison.CurrentCultureIgnoreCase)))
-            .Select(s => Follow(s.did, s.handle)));
-
-    }
-    
     private async Task Follow(string did, string handle)
     {
         var processId = $"f:{did}";
