@@ -18,12 +18,6 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
     }).CreateLogger<InteractionWorker>();
 
-    private readonly string[] _prohibitedTokens =
-    [
-        "DC", "MDB", "Partido", "PCB", "PCdoB", "PCO", "PDT", "PL", "PMB", "PMN", "PP", "Pros", "PRTB", "PSB", "PSC",
-        "PSDB", "PSD", "PSOL", "PSTU", "PTB", "PT", "PV", "Rede Sustentabilidade", "União Brasil", "UP", "Republicanos",
-        "\ud83c\udf46", "\ud83d\udd1e", "\ud83c\udf51", "Conteúdo adulto", "ONNOW"
-    ];
     public async Task ExecuteAsync()
     {
         _logger.LogInformation("Starting interaction worker");
