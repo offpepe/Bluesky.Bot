@@ -1,5 +1,9 @@
+using System.Runtime.CompilerServices;
 using bsky.bot.Clients;
+using bsky.bot.Clients.Interface;
+using bsky.bot.Clients.Models;
 using bsky.bot.Storage;
+using bsky.bot.Workers;
 
 namespace bsky.bot;
 
@@ -10,6 +14,7 @@ public class Program
     private static readonly string Email = Environment.GetEnvironmentVariable("bluesky_email") ?? throw new ApplicationException("variable $bluesky_email not found");
     private static readonly string Password = Environment.GetEnvironmentVariable("bluesky_password") ?? throw new ApplicationException("variable $bluesky_password not found");
     private static readonly string EmbbedSourceExtractorUrl = Environment.GetEnvironmentVariable("embbed_source_url") ?? throw new ApplicationException("variable $embbed_source_url not found");
+    private static readonly string Model = Environment.GetEnvironmentVariable("model") ?? "gemini";
     
     private static readonly ILogger<Program> Logger = LoggerFactory.Create(b =>
     {
@@ -19,23 +24,24 @@ public class Program
     public static void Main(string[] args) => MainAsync(args).Wait();
     private static async Task MainAsync(string[] args)
     {
-        Logger.LogInformation(@"Worker ""bsky.bot"" started at: {0}", DateTime.Now);
+        Logger.LogInformation("Worker \"bsky.bot\" started at: {0}", DateTime.Now);
         using var dataRepository = new DataRepository();
         var blueSkyApi = new BlueSky(BlueSky, Email, Password, EmbbedSourceExtractorUrl);
+        ILllmModel model = Model == "gemini" ? new Gemini() : new Ollama(OllamaUrl, "llama3.1");
         await blueSkyApi.Login();
         switch (args.ElementAtOrDefault(0))
         {
             case "scr":
-                await new ContentCreationWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                await new ContentCreationWorker(blueSkyApi, dataRepository, model).ExecuteAsync();
                 break;
             case "tp":
-                await new TechPostingWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                await new TechPostingWorker(blueSkyApi, model).ExecuteAsync();
                 break;
             default:
-                await new InteractionWorker(blueSkyApi, dataRepository, OllamaUrl).ExecuteAsync();
+                await new InteractionWorker(blueSkyApi, dataRepository, model).ExecuteAsync();
                 break;
         }
-        Logger.LogInformation(@"Worker ""bsky.bot"" ended at: {0}", DateTime.Now);
+        Logger.LogInformation("Worker \"bsky.bot\" ended at: {0}", DateTime.Now);
     }
-    
+
 }

@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using bsky.bot.Clients.Models;
 using bsky.bot.Clients.Requests;
+using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Dtos;
+using bsky.bot.Utils;
 
 namespace bsky.bot.Config;
 
@@ -23,7 +25,6 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(ThreadPostReply))]
 [JsonSerializable(typeof(GetPostResponse))]
 [JsonSerializable(typeof(ConversationRep))]
-[JsonSerializable(typeof(ReplyDestination))]
 [JsonSerializable(typeof(ConversationReply))]
 [JsonSerializable(typeof(GenerateReplyRequest))]
 [JsonSerializable(typeof(GenerateReplyResponse))]
@@ -41,8 +42,41 @@ namespace bsky.bot.Config;
 [JsonSerializable(typeof(GetHrefMetadataResponse))]
 [JsonSerializable(typeof(UploadBlob))]
 [JsonSerializable(typeof(RefKeyObj))]
-[JsonSerializable(typeof(Blob))]
+[JsonSerializable(typeof(Image))]
+[JsonSerializable(typeof(ExternalDict))]
+[JsonSerializable(typeof(GeminiGeneratedResponse))]
+[JsonSerializable(typeof(GeminiCandidate))]
+[JsonSerializable(typeof(GeminiResponseContent))]
+[JsonSerializable(typeof(GeminiRequestPart))]
+[JsonSerializable(typeof(TechPostRequest))]
+[JsonSerializable(typeof(GeminiInstruction))]
+[JsonSerializable(typeof(GenerationConfig))]
+[JsonSerializable(typeof(PostReplyRequest))]
+[JsonSerializable(typeof(LikeRequest))]
+[JsonSerializable(typeof(RecordRequest))]
+[JsonSerializable(typeof(Subject))]
+[JsonSerializable(typeof(ArticleSummaryRequest))]
+[JsonSerializable(typeof(SummarizeRequest))]
+[JsonSerializable(typeof(LLMRequest))]
+[JsonSerializable(typeof(SearchPostsResponse))]
+[JsonSerializable(typeof(RecordEmbed))]
+[JsonSerializable(typeof(PostEmbedRecord))]
+[JsonSerializable(typeof(AspectRatio))]
 [JsonSerializable(typeof(External))]
+[JsonSerializable(typeof(ExternalPost))]
+[JsonSerializable(typeof(EmbedImage))]
+[JsonSerializable(typeof(PostReply))]
+[JsonSerializable(typeof(FeedObject))]
+[JsonSerializable(typeof(GetFeedResponse))]
+[JsonSerializable(typeof(SkylineObject))]
+[JsonSerializable(typeof(GetSkylineResponse))]
+[JsonSerializable(typeof(RequestFile))]
+[JsonSerializable(typeof(UploadFileGeminiRequest))]
+[JsonSerializable(typeof(GetUploadPathResponse))]
+[JsonSerializable(typeof(GeminiFile))]
+[JsonSerializable(typeof(GeminiUploadFileResponse))]
+[JsonSerializable(typeof(GetSuggestionsRequest))]
+[JsonSerializable(typeof(Actor))]
 internal partial class BlueSkyBotJsonSerializerContext : JsonSerializerContext
 {
     

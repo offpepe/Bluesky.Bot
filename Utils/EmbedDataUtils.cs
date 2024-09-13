@@ -1,15 +1,15 @@
 using bsky.bot.Clients.Enums;
 
-namespace bsky.bot.Clients.Models;
+namespace bsky.bot.Utils;
 
-public static class Embed
+public static class EmbedDataUtils
 {
     public static Dictionary<string, object> GetEmbed(string uri, string title, string description, string blob,
         string mimeType, int size) => new()
     {
         { "$type", EmbedTypes.External },
         {
-            "external", new External(
+            "external", new ExternalDict(
                 uri, 
                 title,
                 description,
@@ -27,7 +27,7 @@ public static class Embed
     };
 }
 
-public readonly record struct External(
+public readonly record struct ExternalDict(
     string uri,
     string title,
     string description,

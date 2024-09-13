@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace bsky.bot.Clients.Models;
 
-public class Blob
+public class Image
 {
     [JsonPropertyName("$type")] public string Type { get; set; } = null!;
     [JsonPropertyName("ref")] public RefKeyObj? Reference { get; set; }

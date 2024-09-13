@@ -19,4 +19,3 @@ public readonly struct FollowRequest
     public string repo { get; init; }
     public Dictionary<string, string> record { get; init; }
 } 
-public readonly record struct Subject(string Url, string Cid);
