@@ -91,8 +91,9 @@ public sealed class BlueSky
 
     public async Task Reply(Reply reply, string text)
     {
+        var facets = FindTags(text);
         var request = JsonSerializer.Serialize(
-            new ReplyRequest(Repo, reply, text),
+            new ReplyRequest(Repo, reply, text, facets),
             BlueSkyBotJsonSerializerContext.Default.ReplyRequest
         );
         var httpResponse = await _httpClient.PostAsync("com.atproto.repo.createRecord", new StringContent(request, Encoding.UTF8, "application/json"));

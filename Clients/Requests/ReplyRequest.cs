@@ -6,15 +6,22 @@ namespace bsky.bot.Clients.Requests;
 
 public sealed class ReplyRequest
 {
-    public ReplyRequest(string repo, Reply reply, string content)
+    public ReplyRequest(string repo, Dictionary<string, object> record)
     {
         this.repo = repo;
+        this.record = record;
+    }
+    public ReplyRequest(string repo, Reply reply, string content, Facet[] facets)
+    {
+        this.repo = repo;
+        this.record = record;
         record = new Dictionary<string, object>()
         {
             {"$type", EventTypes.POST},
             {"langs", Constants.Langs},
             {"text",  content},
             {"reply", reply},
+            {"facets", facets},
             {"createdAt", DateTime.Now.ToString("o")}
         };
     }
