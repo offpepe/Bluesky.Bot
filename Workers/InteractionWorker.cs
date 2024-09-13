@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using bsky.bot.Clients;
 using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
@@ -27,19 +28,20 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
     {
         _logger.LogInformation("Starting interaction worker");
         var list = await blueSky.ListNotifications();
-        var skyline = await blueSky.GetSocialNetworkContext(100);
+        var skyline = await blueSky.GetFullSocialNetworkContext(100);
         var tasks = new List<Task>()
         {
-            CreatePost(skyline)
+            CreatePost(skyline),
         };
-        if (list.notifications.Any(n => n.reason == NotificationReasons.FOLLOW))
-            tasks.AddRange(list.notifications
-                .Where(n => n.reason == NotificationReasons.FOLLOW)
-                .Select(f => Follow(f.author.did, f.author.handle)));
-        if (list.notifications.Any(n => n.reason == NotificationReasons.REPLY))
-            tasks.AddRange(list.notifications.Where(r => r.reason == NotificationReasons.REPLY)
-                .Select(r =>
-                    ReplyReplies(r, RequestExtensions.ConvertSkylineToTechPostRequest<PostReplyRequest>(skyline))));
+        tasks.AddRange(list.notifications
+            .Where(n => n.reason == NotificationReasons.FOLLOW)
+            .Select(f => Follow(f.author.did, f.author.handle)));
+        tasks.AddRange(Reply(list.notifications.Where(n =>
+            n.reason is 
+                NotificationReasons.REPLY or
+                NotificationReasons.QUOTE or
+                NotificationReasons.MENTION
+        ).ToArray(), skyline));
         await Task.WhenAll(tasks.Select(IgnoreErrors));
         _logger.LogInformation("Interaction worker stopped");
         return;
@@ -84,24 +86,36 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         _logger.LogInformation("user {Handle} followed!", handle);
     }
 
-    private async Task ReplyReplies(Notification notification, PostReplyRequest request)
+    private IEnumerable<Task> Reply(Notification[] notifications, Post[] skyline)
     {
-        if (dataRepository.IsUninteractableRepo(notification.author.did))
+        var toReply = new ConcurrentBag<Notification>();
+        Parallel.ForEach(notifications, notification =>
         {
-            _logger.LogInformation("repo is uninteractable, skipping...");
-            return;
-        }
-        var alreadyProcessed = dataRepository.PostAlreadyProcessed(notification.uri);
-        if (alreadyProcessed || notification.record is not { reply: not null }) return;
-        if (notification.record.Value.text.Contains("!bksy.bot.mute"))
-        {
-            dataRepository.AddNonInteractableRepo(notification.author.did);
-            dataRepository.AddProcessedPost(notification.uri);
-            return;
-        }
-        if (notification.record.Value.text.Contains("\ud83d\udccc")) return;
-        _logger.LogInformation("tracking conversation of thread {RootUri}", notification.record.Value.reply!.Value.root.uri);
+            if (dataRepository.IsUninteractableRepo(notification.author.did))
+            {
+                _logger.LogInformation("repo is uninteractable, skipping...");
+                return;
+            }
 
+            var alreadyProcessed = dataRepository.PostAlreadyProcessed(notification.uri);
+            if (alreadyProcessed || notification.record is not { reply: not null }) return;
+            if (notification.record.Value.text.Contains("!bksy.bot.mute"))
+            {
+                dataRepository.AddNonInteractableRepo(notification.author.did);
+                dataRepository.AddProcessedPost(notification.uri);
+                return;
+            }
+
+            if (notification.reason == NotificationReasons.REPLY && (notifications.Any(n => n.record?.reply?.parent.uri == notification.uri) ||
+                                                                     notifications.Any(n => n.record?.reply?.root.uri == notification.uri))) return;
+            if (notification.record.Value.text.Contains("\ud83d\udccc")) return;
+            toReply.Add(notification);
+        });
+        return toReply.Select(n => ReplyReplies(n, RequestExtensions.ConvertSkylineToTechPostRequest<PostReplyRequest>(skyline)));
+    }
+
+    private async Task ReplyReplies(Notification notification, PostReplyRequest request)
+    {   
         var context = await TrackConversationContextToGemini(notification.uri);
         if (context.Length == 0)
         {
@@ -113,7 +127,12 @@ public class InteractionWorker(BlueSky blueSky, DataRepository dataRepository, I
         _logger.LogInformation("generating response...");
         var generatedContent = await model.Generate(request);
         _logger.LogInformation("response generated");
-        var reply = notification.record.Value.reply.Value with
+        if (generatedContent.Contains("FINISHED"))
+        {
+            dataRepository.AddProcessedPost(notification.uri);
+            return;
+        }
+        var reply = notification.record!.Value!.reply!.Value with
         {
             parent = new Subject(notification.uri, notification.cid)
         };

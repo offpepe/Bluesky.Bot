@@ -29,7 +29,7 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
     {
         _logger.LogInformation("start creating Tech posting job");
         _logger.LogInformation("searching social interaction to base response");
-        var feeds = await blueSky.GetSocialNetworkContext(100);
+        var feeds = await blueSky.GetTechSocialNetworkContext(100);
         _logger.LogInformation("finished searching tech posts");
         _logger.LogInformation("generating posting job");
         var generatedPost = await model.Generate(new TechPostRequest(feeds.ConvertPostIntoConversationContext()));   
