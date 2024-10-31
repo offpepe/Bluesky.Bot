@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using bsky.bot.Clients.Enums;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
 using bsky.bot.Config;
@@ -11,35 +11,35 @@ using bsky.bot.Utils;
 
 namespace bsky.bot.Clients;
 
-public sealed class BlueSky
+public sealed class BlueSky : IDisposable
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _embedSourceExtractorUrl; 
-    private readonly string _email;
-    private readonly string _password;
-    private string _token = string.Empty;
+    private readonly HttpClient httpClient;
+    private readonly string embedSourceExtractorUrl;
+    private readonly string email;
+    private readonly string password;
+    private string token = string.Empty;
     public string Repo = string.Empty;
 
     private const string BOBBLE_TAG = "#bolhadev";
     private const string ARTICLE_TAG = "#ArtigosDev";
     private const string SEARCH_TERM = "\"samsantosb.bsky.social\" || \"bolhadev\" || \"bolhatech\" || \"BolhaTech\" || \"studytechbr\" || \"sseraphini.bsky.social\"";
-    
+
     public BlueSky(string url, string email, string password, string embedSourceUrl)
     {
-        _email = email;
-        _password = password;
-        _httpClient = new HttpClient(new BskyHttpHandler<BlueSky>());
-        _httpClient.BaseAddress = new Uri(url);
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        _embedSourceExtractorUrl = embedSourceUrl;
+        this.email = email;
+        this.password = password;
+        this.httpClient = new HttpClient(new BskyHttpHandler<BlueSky>());
+        this.httpClient.BaseAddress = new Uri(url);
+        this.httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        this.embedSourceExtractorUrl = embedSourceUrl;
     }
 
 
-    public async Task Login()
+    public async Task LoginAsync()
     {
-        var body = JsonSerializer.Serialize(new LoginRequest(_email, _password),
+        var body = JsonSerializer.Serialize(new LoginRequest(this.email, this.password),
             BlueSkyBotJsonSerializerContext.Default.LoginRequest);
-        var httpResponse = await _httpClient
+        var httpResponse = await this.httpClient
             .PostAsync(
                 "com.atproto.server.createSession",
                 new StringContent(body, Encoding.UTF8, "application/json")
@@ -48,18 +48,18 @@ public sealed class BlueSky
         {
             throw new HttpRequestException($"Failed to login: {httpResponse.StatusCode}, response: {httpResponse.Content.ReadAsStringAsync().Result}");
         }
-        
+
         var response = JsonSerializer.Deserialize(
             await httpResponse.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.LoginResponse);
-        _token = response.accessJwt;
-        Repo = response.did;
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+        this.token = response.accessJwt;
+        this.Repo = response.did;
+        this.httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", this.token);
     }
 
-    public async Task<ListNotificationsResponse> ListNotifications()
+    public async Task<ListNotificationsResponse> ListNotificationsAsync()
     {
-        var httpResponse = await _httpClient.GetAsync("app.bsky.notification.listNotifications");
+        var httpResponse = await this.httpClient.GetAsync("app.bsky.notification.listNotifications");
         if (httpResponse.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(
                 await httpResponse.Content.ReadAsStreamAsync(),
@@ -69,46 +69,46 @@ public sealed class BlueSky
         {
             throw new HttpRequestException($"Failed to get notifications: {httpResponse.StatusCode}, response: {httpResponse.Content.ReadAsStringAsync().Result}");
         }
-        await Login();
-        return await ListNotifications();
+        await this.LoginAsync();
+        return await this.ListNotificationsAsync();
     }
 
-    public async Task FollowBack(string did)
+    public async Task FollowBackAsync(string did)
     {
         var request = JsonSerializer.Serialize(
-            new FollowRequest(Repo, did),
+            new FollowRequest(this.Repo, did),
             BlueSkyBotJsonSerializerContext.Default.FollowRequest
         );
-        var httpResponse = await _httpClient.PostAsync("com.atproto.repo.createRecord", new StringContent(request, Encoding.UTF8, "application/json"));
+        var httpResponse = await this.httpClient.PostAsync("com.atproto.repo.createRecord", new StringContent(request, Encoding.UTF8, "application/json"));
         if (httpResponse.IsSuccessStatusCode) return;
         if (httpResponse.StatusCode != HttpStatusCode.Unauthorized)
         {
             throw new HttpRequestException($"Failed to follow user did | StatusCode {httpResponse.StatusCode}\n Response: {httpResponse.Content.ReadAsStringAsync().Result}");
         }
-        await Login();
-        await FollowBack(did);
+        await this.LoginAsync();
+        await this.FollowBackAsync(did);
     }
 
-    public async Task Reply(Reply reply, string text)
+    public async Task ReplyAsync(Reply reply, string text)
     {
         var facets = FindTags(text);
         var request = JsonSerializer.Serialize(
-            new ReplyRequest(Repo, reply, text, facets),
+            new ReplyRequest(this.Repo, reply, text, facets),
             BlueSkyBotJsonSerializerContext.Default.ReplyRequest
         );
-        var httpResponse = await _httpClient.PostAsync("com.atproto.repo.createRecord", new StringContent(request, Encoding.UTF8, "application/json"));
+        var httpResponse = await this.httpClient.PostAsync("com.atproto.repo.createRecord", new StringContent(request, Encoding.UTF8, "application/json"));
         if (httpResponse.IsSuccessStatusCode) return;
         if (httpResponse.StatusCode != HttpStatusCode.Unauthorized)
         {
             throw new HttpRequestException($"Failed to follow to reply on repo {reply.parent.cid}, uri {reply.parent.uri}| statusCode: {httpResponse.StatusCode} \n Response: {httpResponse.Content.ReadAsStringAsync().Result}");
         }
-        await Login();
-        await Reply(reply, text);
+        await this.LoginAsync();
+        await this.ReplyAsync(reply, text);
     }
 
-    public async Task<GetPostThread> GetPostThread(string uri)
+    public async Task<GetPostThread> GetPostThreadAsync(string uri)
     {
-        var response = await _httpClient.GetAsync($"app.bsky.feed.getPostThread?uri={uri}");
+        var response = await this.httpClient.GetAsync($"app.bsky.feed.getPostThread?uri={uri}");
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(
                 await response.Content.ReadAsStreamAsync(),
@@ -118,126 +118,126 @@ public sealed class BlueSky
         {
             throw new HttpRequestException($"Failed to get post thread by uri: {uri}, response: {response.StatusCode}\n Response: {response.Content.ReadAsStringAsync().Result}");
         }
-        await Login();
-        return await GetPostThread(uri);
+        await this.LoginAsync();
+        return await this.GetPostThreadAsync(uri);
     }
 
-    public async Task CreateNewContentPost(string content, string href)
+    public async Task CreateNewContentPostAsync(string content, string href)
     {
         var facets = AddTags(ref content);
-        var requestBody = new PostRequest(Repo, content, facets);
+        var requestBody = new PostRequest(this.Repo, content, facets);
         if (!string.IsNullOrEmpty(href))
         {
-            var embedData = await GetEmbedData(href.Trim());
+            var embedData = await this.GetEmbedDataAsync(href.Trim());
                requestBody.AddEmbed(ref embedData);
         }
         var request = JsonSerializer.Serialize(
             requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
-        var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
+        var response = await this.httpClient.PostAsync("com.atproto.repo.createRecord",
             new StringContent(request, Encoding.UTF8, "application/json"));
         if (response.IsSuccessStatusCode) return;
         if (response.StatusCode != HttpStatusCode.Unauthorized)
         {
             throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
         }
-        await Login();
-        await CreateNewContentPost(content, href);
-    }
-    
-    public async Task CreateNewSocialPost(string content)
-    {
-        var facets = FindTags(content);
-        var requestBody = new PostRequest(Repo, content, facets);
-        var request = JsonSerializer.Serialize(
-            requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
-        var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
-            new StringContent(request, Encoding.UTF8, "application/json"));
-        if (response.IsSuccessStatusCode) return;
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-        {
-            throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
-        }
-        await Login();
-        await CreateNewSocialPost(content);
+        await this.LoginAsync();
+        await this.CreateNewContentPostAsync(content, href);
     }
 
-    public async Task LikePost(string uri, string cid)
+    public async Task CreateNewSocialPostAsync(string content)
     {
-        var request = JsonSerializer.Serialize(new LikeRequest(Repo, uri, cid),
+        var facets = FindTags(content);
+        var requestBody = new PostRequest(this.Repo, content, facets);
+        var request = JsonSerializer.Serialize(
+            requestBody, BlueSkyBotJsonSerializerContext.Default.PostRequest);
+        var response = await this.httpClient.PostAsync("com.atproto.repo.createRecord",
+            new StringContent(request, Encoding.UTF8, "application/json"));
+        if (response.IsSuccessStatusCode) return;
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException($"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
+        }
+        await this.LoginAsync();
+        await this.CreateNewSocialPostAsync(content);
+    }
+
+    public async Task LikePostAsync(string uri, string cid)
+    {
+        var request = JsonSerializer.Serialize(new LikeRequest(this.Repo, uri, cid),
             BlueSkyBotJsonSerializerContext.Default.LikeRequest);
-        var response = await _httpClient.PostAsync("com.atproto.repo.createRecord",
+        var response = await this.httpClient.PostAsync("com.atproto.repo.createRecord",
             new StringContent(request, Encoding.UTF8, "application/json"));
         if (response.IsSuccessStatusCode) return;
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             throw new HttpRequestException(
                 $"Failed to create new post: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
-        await Login();
-        await LikePost(uri, cid);
+        await this.LoginAsync();
+        await this.LikePostAsync(uri, cid);
     }
 
-    private async Task<Post[]> SearchTechPosts(string searchValue, int cursor, int limit)
+    private async Task<Post[]> SearchTechPostsAsync(string searchValue, int cursor, int limit)
     {
-        var response = await _httpClient.GetAsync($"app.bsky.feed.searchPosts?q={searchValue}&cursor={cursor}&limit={limit}");
+        var response = await this.httpClient.GetAsync($"app.bsky.feed.searchPosts?q={searchValue}&cursor={cursor}&limit={limit}");
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
                 BlueSkyBotJsonSerializerContext.Default.SearchPostsResponse).posts;
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             throw new HttpRequestException(
                 $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
-        await Login();
-        return await SearchTechPosts(searchValue, cursor, limit);
+        await this.LoginAsync();
+        return await this.SearchTechPostsAsync(searchValue, cursor, limit);
     }
 
-    public async Task<Post[]> GetSkyline(int limit)
+    private async Task<Post[]> GetSkylineAsync(int limit)
     {
-        var response = await _httpClient.GetAsync($"app.bsky.feed.getTimeline?limit={limit}");
+        var response = await this.httpClient.GetAsync($"app.bsky.feed.getTimeline?limit={limit}");
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
                 BlueSkyBotJsonSerializerContext.Default.GetSkylineResponse).feed.Select(f => f.post).ToArray();
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             throw new HttpRequestException(
                 $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
-        await Login();
-        return await GetSkyline(limit);
+        await this.LoginAsync();
+        return await this.GetSkylineAsync(limit);
     }
 
-    public async Task<GetSuggestionsRequest> GetSuggestions(int cursor)
+    public async Task<GetSuggestionsRequest> GetSuggestionsAsync(int cursor)
     {
-        var response = await _httpClient.GetAsync($"app.bsky.actor.getSuggestions?limit=100&cursor={cursor}");
+        var response = await this.httpClient.GetAsync($"app.bsky.actor.getSuggestions?limit=100&cursor={cursor}");
         if (response.IsSuccessStatusCode)
             return JsonSerializer.Deserialize(await response.Content.ReadAsStreamAsync(),
                 BlueSkyBotJsonSerializerContext.Default.GetSuggestionsRequest);
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             throw new HttpRequestException(
                 $"Failed search posts: {response.StatusCode}, response: {response.Content.ReadAsStringAsync().Result}");
-        await Login();
-        return await GetSuggestions(cursor);
+        await this.LoginAsync();
+        return await this.GetSuggestionsAsync(cursor);
     }
 
-    public async Task<Post[]> GetTechSocialNetworkContext(int limit)
+    public async Task<Post[]> GetTechSocialNetworkContextAsync(int limit)
     {
         if (limit <= 100)
-            return (await SearchTechPosts(SEARCH_TERM, 1, limit))
+            return (await this.SearchTechPostsAsync(SEARCH_TERM, 1, limit))
                 .DistinctBy(f => f.cid).ToArray();
         var numInterations = (int) Math.Floor(limit / 100m) + 1;
         var sizeOfLastInteraction = limit % 100;
         var posts = Enumerable.Empty<Post>();
         await Parallel.ForAsync(1, numInterations, async (i, _) =>
         {
-            posts = posts.Concat(await SearchTechPosts(SEARCH_TERM, i, 100));
+            posts = posts.Concat(await this.SearchTechPostsAsync(SEARCH_TERM, i, 100));
         });
         if (sizeOfLastInteraction == 0)
             return posts
                 .DistinctBy(f => f.cid).ToArray();
         return posts
-            .Concat(await SearchTechPosts(SEARCH_TERM, numInterations, sizeOfLastInteraction))
+            .Concat(await this.SearchTechPostsAsync(SEARCH_TERM, numInterations, sizeOfLastInteraction))
             .DistinctBy(f => f.cid).ToArray();
     }
-    
-    public async Task<Post[]> GetFullSocialNetworkContext(int limit)
+
+    public async Task<Post[]> GetFullSocialNetworkContextAsync(int limit)
     {
-        if (limit <= 100) return (await SearchTechPosts(SEARCH_TERM, 1, limit / 2))
-            .Concat(await GetSkyline(limit / 2))
+        if (limit <= 100) return (await this.SearchTechPostsAsync(SEARCH_TERM, 1, limit / 2))
+            .Concat(await this.GetSkylineAsync(limit / 2))
             .DistinctBy(f => f.uri)
             .ToArray();
         var numInterations = (int) Math.Floor(limit / 100m) + 1;
@@ -245,52 +245,51 @@ public sealed class BlueSky
         var posts = Enumerable.Empty<Post>();
         await Parallel.ForAsync(1, numInterations, async (i, _) =>
         {
-            posts = posts.Concat(await SearchTechPosts(SEARCH_TERM, i, 50))
-                .Concat(await GetSkyline(50));
+            posts = posts.Concat(await this.SearchTechPostsAsync(SEARCH_TERM, i, 50))
+                .Concat(await this.GetSkylineAsync(50));
         });
         if (sizeOfLastInteraction == 0)
             return posts
                 .DistinctBy(f => f.uri).ToArray();
         return posts
-            .Concat(await SearchTechPosts(SEARCH_TERM, numInterations, sizeOfLastInteraction / 2))
-            .Concat(await GetSkyline(sizeOfLastInteraction / 2))
+            .Concat(await this.SearchTechPostsAsync(SEARCH_TERM, numInterations, sizeOfLastInteraction / 2))
+            .Concat(await this.GetSkylineAsync(sizeOfLastInteraction / 2))
             .DistinctBy(f => f.uri).ToArray();
     }
-    
-    private async Task<(byte[], string)> GetImageContent(string href)
+
+    private async Task<(byte[], string)> GetImageContentAsync(string href)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, href);
-        var response = await _httpClient.SendAsync(request);
+        var response = await this.httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to get image: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
         return (await response.Content.ReadAsByteArrayAsync(), response.Content.Headers.ContentType!.MediaType!);
     }
 
-    private async Task<(string, string, int)> UploadBlob(string href)
+    private async Task<(string, string, int)> UploadBlobAsync(string href)
     {
-        var (content, mimeType) = await GetImageContent(href);
+        var (content, mimeType) = await this.GetImageContentAsync(href);
         using var request = new HttpRequestMessage(HttpMethod.Post, "com.atproto.repo.uploadBlob");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(mimeType));
         request.Content = new ByteArrayContent(content);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
-        using var response = await _httpClient.SendAsync(request);
+        using var response = await this.httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to upload blob: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
         var result = JsonSerializer.Deserialize(
             await response.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.UploadBlob
         );
-        var resultStr = await response.Content.ReadAsStringAsync();
         return (result.blob.Reference!.link, result.blob.MimeType, result.blob.Size);
     }
 
-    private async Task<EmbedData> GetEmbedData(string href)
+    private async Task<EmbedData> GetEmbedDataAsync(string href)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, _embedSourceExtractorUrl + href);
-        var response = await _httpClient.SendAsync(request);
+        var request = new HttpRequestMessage(HttpMethod.Get, this.embedSourceExtractorUrl + href);
+        var response = await this.httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Failed to get embedding data: {href}, response: {response.StatusCode} | Response: {await response.Content.ReadAsStringAsync()}");
         var metadata = JsonSerializer.Deserialize(
             await response.Content.ReadAsStreamAsync(),
             BlueSkyBotJsonSerializerContext.Default.GetHrefMetadataResponse);
-        
+
         if (!string.IsNullOrEmpty(metadata.error)) throw new HttpRequestException($"Failed to get embedding data: {href}. Error: {metadata.error}");
         var embedData = new EmbedData(
             href,
@@ -301,7 +300,7 @@ public sealed class BlueSky
             0
             );
         if (string.IsNullOrEmpty(metadata.image)) return embedData;
-        var (content, mimeType, size) = await UploadBlob(metadata.image);
+        var (content, mimeType, size) = await this.UploadBlobAsync(metadata.image);
         embedData = embedData with
         {
             blob = content,
@@ -344,24 +343,6 @@ public sealed class BlueSky
             }
         ];
     }
-    
-    private static Facet[] AddBobbleTag(ref string content)
-    {
-        if (content.Length + BOBBLE_TAG.Length >= 300) throw new ApplicationException("Unable to add tag. Maximum allowed length is 300");
-        content += BOBBLE_TAG;
-        var bobbleIndex = content.IndexOf(BOBBLE_TAG, StringComparison.Ordinal);
-        return
-        [new Facet
-            {
-                index = new FacetIndex(content.Utf16IndexToUtf8Index(bobbleIndex), content.Utf16IndexToUtf8Index(bobbleIndex + BOBBLE_TAG.Length)),
-                features = [new Feature
-                    {
-                        type = FeatureTypes.TAG,
-                        tag = BOBBLE_TAG[1..]
-                    }
-                ]
-            }];
-    }
 
     private static Facet[] FindTags(string content)
     {
@@ -390,4 +371,6 @@ public sealed class BlueSky
         }
         return facets.ToArray();
     }
+
+    public void Dispose() => this.httpClient.Dispose();
 }

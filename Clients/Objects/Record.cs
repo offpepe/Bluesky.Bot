@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using bsky.bot.Clients.Requests;
 
-namespace bsky.bot.Clients.Models;
+namespace bsky.bot.Clients.Objects;
 
 public readonly struct Record()
 {

@@ -1,6 +1,6 @@
 using bsky.bot.Clients;
 using bsky.bot.Clients.Interface;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;
@@ -29,12 +29,12 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
     {
         _logger.LogInformation("start creating Tech posting job");
         _logger.LogInformation("searching social interaction to base response");
-        var feeds = await blueSky.GetTechSocialNetworkContext(100);
+        var feeds = await blueSky.GetTechSocialNetworkContextAsync(100);
         _logger.LogInformation("finished searching tech posts");
         _logger.LogInformation("generating posting job");
-        var generatedPost = await model.Generate(new TechPostRequest(feeds.ConvertPostIntoConversationContext()));   
+        var generatedPost = await model.GenerateAsync(new TechPostRequest(feeds.ConvertPostIntoConversationContext()));   
         _logger.LogInformation("posting content");
-        await blueSky.CreateNewSocialPost(generatedPost);
+        await blueSky.CreateNewSocialPostAsync(generatedPost);
         _logger.LogInformation("tech posting created");
     }
 
@@ -61,7 +61,7 @@ public class TechPostingWorker(BlueSky blueSky, ILllmModel model)
 
     private async Task<bool> IsTechContent(string content)
     {
-        var response = await model.Generate(new VerifyTechContentRequest(content));
+        var response = await model.GenerateAsync(new VerifyTechContentRequest(content));
         return response.Contains("True");
     }
 

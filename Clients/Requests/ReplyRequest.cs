@@ -1,5 +1,6 @@
+using System.Text.Json.Serialization;
 using bsky.bot.Clients.Enums;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 using bsky.bot.Workers;
 
 namespace bsky.bot.Clients.Requests;
@@ -8,14 +9,13 @@ public sealed class ReplyRequest
 {
     public ReplyRequest(string repo, Dictionary<string, object> record)
     {
-        this.repo = repo;
-        this.record = record;
+        this.Repo = repo;
+        this.Record = record;
     }
     public ReplyRequest(string repo, Reply reply, string content, Facet[] facets)
     {
-        this.repo = repo;
-        this.record = record;
-        record = new Dictionary<string, object>()
+        this.Repo = repo;
+        this.Record = new Dictionary<string, object>()
         {
             {"$type", EventTypes.POST},
             {"langs", Constants.Langs},
@@ -26,10 +26,10 @@ public sealed class ReplyRequest
         };
     }
 
-    public string collection { get; } = EventTypes.POST;
-    public string repo { get; init; }
-    public Dictionary<string, object> record { get; init; }
-    
+    public string Collection { get; } = EventTypes.POST;
+    public string Repo { get; init; }
+    public Dictionary<string, object> Record { get; init; }
+
 }
 
 public readonly record struct Reply(Subject parent, Subject root);

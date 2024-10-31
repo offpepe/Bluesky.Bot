@@ -31,9 +31,9 @@ public class ContentCreationWorker(
             return;
         }
         _logger.LogInformation("Generating content based on source");
-        var generatedContent = await model.Generate(new ArticleSummaryRequest(contentBase.Value.source));
+        var generatedContent = await model.GenerateAsync(new ArticleSummaryRequest(contentBase.Value.source));
         _logger.LogInformation("Publishing content generated");
-        await blueSky.CreateNewContentPost(generatedContent + '\n', contentBase.Value.href);
+        await blueSky.CreateNewContentPostAsync(generatedContent + '\n', contentBase.Value.href);
         dataRepository.DefineSourceReaded();
         _logger.LogInformation("Content published");
     }

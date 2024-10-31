@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace bsky.bot.Clients.Models;
+namespace bsky.bot.Clients.Objects;
 
 public sealed class Facet
 {

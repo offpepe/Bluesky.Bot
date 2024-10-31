@@ -1,6 +1,4 @@
-using bsky.bot.Clients.Requests;
-
-namespace bsky.bot.Clients.Models;
+namespace bsky.bot.Clients.Objects;
 
 public sealed record Post(
     string uri,

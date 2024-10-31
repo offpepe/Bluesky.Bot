@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Clients.Responses;

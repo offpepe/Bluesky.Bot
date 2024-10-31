@@ -4,5 +4,5 @@ namespace bsky.bot.Clients.Interface;
 
 public interface ILllmModel
 {
-    Task<string> Generate(LLMRequest message);
+    Task<string> GenerateAsync(LLMRequest message);
 }

@@ -4,46 +4,45 @@ using System.Text;
 using System.Text.Json;
 using bsky.bot.Clients.Enums;
 using bsky.bot.Clients.Interface;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Requests.Gemini;
 using bsky.bot.Config;
 using bsky.bot.Utils;
-using bsky.bot.Workers;
 
 namespace bsky.bot.Clients;
 
-public class Gemini : ILllmModel
+public class Gemini : ILllmModel, IDisposable
 {
     private const int GEN_LIMIT = 15;
     private const string GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=@APIKEY";
     private const string GEMINI_UPLOAD_FILE_URL = "https://generativelanguage.googleapis.com/upload/v1beta/files?key=@APIKEY";
-    private static readonly string gemini_api_key = Environment.GetEnvironmentVariable("gemini_api_key") ??
+    private static readonly string geminiApiKey = Environment.GetEnvironmentVariable("gemini_api_key") ??
                                                     throw new ApplicationException(
                                                         "variable $gemini_api_key not found");
-    private readonly HttpClient _httpClient;
-    
-    private readonly ILogger<Program> _logger = LoggerFactory.Create(b =>
+    private readonly HttpClient httpClient;
+
+    private readonly ILogger<Program> logger = LoggerFactory.Create(b =>
     {
         b.SetMinimumLevel(LogLevel.Debug).AddSimpleConsole();
     }).CreateLogger<Program>();
 
-    private int _totalGenerations;
+    private int totalGenerations;
 
     public Gemini()
     {
-        _httpClient = new HttpClient(new BskyHttpHandler<Gemini>());
-        _httpClient.BaseAddress = new Uri(GEMINI_URL
-            .Replace("@APIKEY", gemini_api_key));
-        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        this.httpClient = new HttpClient(new BskyHttpHandler<Gemini>());
+        this.httpClient.BaseAddress = new Uri(GEMINI_URL
+            .Replace("@APIKEY", geminiApiKey));
+        this.httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
 
-    public async Task<string> Generate(LLMRequest message)
+    public async Task<string> GenerateAsync(LLMRequest message)
     {
-        EnsureGenerationLimit();
+        this.EnsureGenerationLimit();
         var requestBody = JsonSerializer.Serialize(message,
             BlueSkyBotJsonSerializerContext.Default.LLMRequest);
-        var response = await _httpClient.PostAsync(string.Empty, new StringContent(requestBody, Encoding.UTF8, "application/json"));
+        var response = await this.httpClient.PostAsync(string.Empty, new StringContent(requestBody, Encoding.UTF8, "application/json"));
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Gemini generation failed | StatusCode: {response.StatusCode} \n Result: {await response.Content.ReadAsStringAsync()}");
@@ -59,34 +58,34 @@ public class Gemini : ILllmModel
         if (generatedContent?.Length > Constants.GENERATED_CONTENT_SIZE_LIMIT)
         {
             var instructions = message.contents;
-            ArrayUtils.Push(ref instructions, new GeminiInstruction("model", [new GeminiRequestPart(generatedContent)]));            
-            generatedContent = await AdjustContentSize(instructions);
+            ArrayUtils.Push(ref instructions, new GeminiInstruction("model", [new GeminiRequestPart(generatedContent)]));
+            generatedContent = await this.AdjustContentSizeAsync(instructions);
         }
-        return generatedContent!;   
+        return generatedContent!;
     }
 
-    private async Task<GeminiInstruction[]> UpdateContentUri(GeminiInstruction[] instructions)
+    private async Task<GeminiInstruction[]> UpdateContentUriAsync(GeminiInstruction[] instructions)
     {
-        await Task.WhenAll(instructions[0].parts.Select(ChangeFileUriToGeminiDomain));
+        await Task.WhenAll(instructions[0].parts.Select(this.ChangeFileUriToGeminiDomainAsync));
         return instructions;
     }
 
-    private async Task ChangeFileUriToGeminiDomain(GeminiRequestPart part)
+    private async Task ChangeFileUriToGeminiDomainAsync(GeminiRequestPart part)
     {
         if (part.fileData == null) return;
-        part.fileData = await UploadFile(part.fileData.fileUri);
+        part.fileData = await this.UploadFileAsync(part.fileData.fileUri);
     }
 
-    private async Task<string> AdjustContentSize(GeminiInstruction[] instructions)
+    private async Task<string> AdjustContentSizeAsync(GeminiInstruction[] instructions)
     {
-        _logger.LogInformation("Generated content exceeded size limit, adjusting...");
+        this.logger.LogInformation("Generated content exceeded size limit, adjusting...");
         var attempts = 1;
         Unsafe.SkipInit<string>(out var response);
         while (true)
         {
-            _logger.LogInformation("Adjusting content size attempt: {Attempt}", attempts);
+            this.logger.LogInformation("Adjusting content size attempt: {Attempt}", attempts);
             ArrayUtils.Push(ref instructions, new GeminiInstruction("user", [new GeminiRequestPart("Resuma mais")]));
-            response = await Generate(new SummarizeRequest(
+            response = await this.GenerateAsync(new SummarizeRequest(
                 GeminiSystemInstructions.CreateArticleSummary,
                 instructions
             ));
@@ -94,20 +93,20 @@ public class Gemini : ILllmModel
             ArrayUtils.Push(ref instructions, new GeminiInstruction("model", [new GeminiRequestPart(response)]));
             attempts++;
         }
-        _logger.LogInformation("Content generated size adjusted");
+        this.logger.LogInformation("Content generated size adjusted");
         return response;
     }
 
-    private async Task<GeminiRequestFile> UploadFile(string fileUri)
+    private async Task<GeminiRequestFile> UploadFileAsync(string fileUri)
     {
         var (content, mimeType) = await Utils.Utils.GetImageContent(fileUri);
         var filename = $"{Guid.NewGuid():N}{mimeType.Split('/')[1]}";
-        var uploadPath = await GetUploadUrl(filename, mimeType, content.Length);
+        var uploadPath = await this.GetUploadUrlAsync(filename, mimeType, content.Length);
         using var request = new HttpRequestMessage(HttpMethod.Post, uploadPath);
         request.Content = new ByteArrayContent(content);
         request.Headers.Add("X-Goog-Upload-Offset", "0");
         request.Headers.Add("X-Goog-Upload-Command", "upload, finalize");
-        using var response = await _httpClient.SendAsync(request);
+        using var response = await this.httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Gemini upload failed | {response.StatusCode} | {await response.Content.ReadAsStringAsync()}");
@@ -116,9 +115,9 @@ public class Gemini : ILllmModel
         return new GeminiRequestFile(resultUri, mimeType);
     }
 
-    private async Task<string> GetUploadUrl(string filename, string mimeType, int size)
+    private async Task<string> GetUploadUrlAsync(string filename, string mimeType, int size)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, GEMINI_UPLOAD_FILE_URL.Replace("@APIKEY", gemini_api_key));
+        using var request = new HttpRequestMessage(HttpMethod.Post, GEMINI_UPLOAD_FILE_URL.Replace("@APIKEY", geminiApiKey));
         request.Content =
             new StringContent(
                 JsonSerializer.Serialize(new UploadFileGeminiRequest(new RequestFile(filename)),
@@ -128,20 +127,22 @@ public class Gemini : ILllmModel
         request.Headers.Add("X-Goog-Upload-Header-Content-Length", size.ToString());
         request.Headers.Add("X-Goog-Upload-Header-Content-Type", mimeType);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        using var response = await _httpClient.SendAsync(request);
+        using var response = await this.httpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Gemini upload failed | {response.StatusCode} | {await response.Content.ReadAsStringAsync()}");
         response.Headers.TryGetValues("x-goog-upload-url", out var values);
         return values?.FirstOrDefault() ?? throw new HttpRequestException("Gemini upload failed");
-    } 
-    
+    }
+
     private void EnsureGenerationLimit()
     {
-        if (_totalGenerations >= GEN_LIMIT) throw new ApplicationException("Gemini generation limit exceeded");
+        if (this.totalGenerations >= GEN_LIMIT) throw new ApplicationException("Gemini generation limit exceeded");
         lock (this)
         {
-            _totalGenerations++;
+            this.totalGenerations++;
         }
     }
+
+    public void Dispose() => this.httpClient.Dispose();
 }

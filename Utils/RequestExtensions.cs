@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 using bsky.bot.Clients.Requests;
 using bsky.bot.Clients.Responses;
 

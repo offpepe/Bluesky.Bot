@@ -1,4 +1,4 @@
-namespace bsky.bot.Clients.Models;
+namespace bsky.bot.Clients.Objects;
 
 public readonly record struct Actor(
     string did,

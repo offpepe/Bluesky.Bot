@@ -2,20 +2,22 @@ namespace bsky.bot.Clients.Requests;
 
 public sealed class GenerateReplyRequest
 {
-    public GenerateReplyRequest(string prompt, string model)
+    public GenerateReplyRequest(string prompt, string model, bool stream)
     {
-        this.prompt = prompt;
-        this.model = model;
+        this.Prompt = prompt;
+        this.Model = model;
+        this.Stream = stream;
     }
-    
-    public GenerateReplyRequest(string prompt, string model, int[] context)
+
+    public GenerateReplyRequest(string prompt, string model, int[] context, bool stream)
     {
-        this.prompt = prompt;
-        this.model = model;
-        this.context = context;
+        this.Prompt = prompt;
+        this.Model = model;
+        this.Context = context;
+        this.Stream = stream;
     }
-    public string prompt { get; init; }
-    public string model { get; init; }
-    public int[]? context { get; init; } = null;
-    public bool stream { get; } = false;
+    public string Prompt { get; init; }
+    public string Model { get; init; }
+    public int[]? Context { get; init; }
+    public bool Stream { get; }
 }

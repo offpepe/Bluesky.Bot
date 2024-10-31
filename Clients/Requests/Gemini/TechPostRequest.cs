@@ -1,5 +1,5 @@
 using bsky.bot.Clients.Enums;
-using bsky.bot.Clients.Models;
+using bsky.bot.Clients.Objects;
 
 namespace bsky.bot.Clients.Requests.Gemini;
 
